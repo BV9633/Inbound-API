@@ -192,8 +192,10 @@ class Invoice(BaseModel):
     currency_y4_cordinate:Optional[float]=Field(default=None)
 
     reviewed_by:Optional[str]=Field(default=None)
-    review_data:Optional[str]=Field(default=None)
+    review_date:Optional[str]=Field(default=None)
     created_by:Optional[str]=Field(default=None)
-    created_date:Optional[str]=Field(default=None)
+    original_creation_date:Optional[str]=Field(default=None)
     last_updated_date:Optional[str]=Field(default=None)
     reason_or_remarks:Optional[str]=Field(default=None)
+    minimum_confidence:Optional[float]=Field(default=None)
+    status:Optional[str]=Field(default=None)
