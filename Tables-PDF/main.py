@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from bigquery_service import get_invoice_data
-from gcs_service import generate_signed_url
+from gcs_service import get_signed_pdf_urls
 from config import PROJECT_ID, BUCKET_NAME,BUCKET_PREFIX,TABLE_ID,DATASET_ID
 
 from fastapi.responses import StreamingResponse
@@ -26,7 +26,7 @@ def get_invoice(invoice_id: str):
         pdf_name = f"{invoice_id}.pdf"
         blob_path = f"{PDF_BASE_PATH}/{pdf_name}"
 
-        signed_url = generate_signed_url(blob_path)
+        signed_url = get_signed_pdf_urls(blob_path)
         if signed_url:
             pdfs.append({
                 "file_name": pdf_name,
@@ -59,6 +59,6 @@ def stream_pdf(invoice_id: str):
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"inline; filename={invoice_id}.pdf"
+            "Content-Disposition": f"inline; filename={invoice_id}_commercial_invoice.pdf"
         }
     )

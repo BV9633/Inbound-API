@@ -1,22 +1,30 @@
 from google.cloud import storage
 from datetime import timedelta
-import os
+from config import PROJECT_ID, BUCKET_NAME
 
-PROJECT_ID = "its-compute-sc-rmapchat-d"
-BUCKET_NAME = "its-sc-rmapchat-bkt-usc1-gscroex-d"
+storage_client = storage.Client(project=PROJECT_ID)
 
-client = storage.Client(project=PROJECT_ID)
+def get_signed_pdf_urls(invoice_id: str):
+    bucket = storage_client.bucket(BUCKET_NAME)
 
-def generate_signed_url(blob_path: str, expiry_minutes=15):
-    bucket = client.bucket(BUCKET_NAME)
-    blob = bucket.blob(blob_path)
-
-    if not blob.exists():
-        return None
-
-    url = blob.generate_signed_url(
-        version="v4",
-        expiration=timedelta(minutes=expiry_minutes),
-        method="GET",
+    prefix = (
+        "DarkDataTransformation/"
+        "DocumentAI/Classifier_Output/"
+        "Commercial_Invoice/"
     )
-    return url
+
+    signed_urls = []
+
+    for blob in bucket.list_blobs(prefix=prefix):
+        if invoice_id in blob.name and blob.name.lower().endswith(".pdf"):
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(minutes=30),
+                method="GET",
+            )
+            signed_urls.append({
+                "file_name": blob.name.split("/")[-1],
+                "signed_url": url
+            })
+
+    return signed_urls
