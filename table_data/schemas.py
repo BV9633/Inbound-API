@@ -199,3 +199,16 @@ class Invoice(BaseModel):
     reason_or_remarks:Optional[str]=Field(default=None)
     minimum_confidence:Optional[float]=Field(default=None)
     status:Optional[str]=Field(default=None)
+
+
+class AllInvoices(BaseModel):
+    invoice_id:str
+    invoice_number:Optional[str]=Field(default=None)
+    original_creation_date:Optional[str]=Field(default=None)
+    status:Optional[str]=Field(default=None)
+    review_date:Optional[str]=Field(default=None)
+    reviewed_by:Optional[str]=Field(default=None)
+    minimum_confidence:Optional[float]=Field(default=None)
+    aging:Optional[int]=Field(default=None)
+
+    
