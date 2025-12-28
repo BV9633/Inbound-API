@@ -18,3 +18,5 @@ def get_invoice(invoice_id: str):
         "records": data,
         "pdf_urls": pdfs
     }
+
+
