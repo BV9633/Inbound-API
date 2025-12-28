@@ -4,9 +4,11 @@ from fastapi import FastAPI,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
+from datetime import datetime,timedelta,timezone
 from dotenv import load_dotenv
 import schemas
-#import fetch_files
+import fetch_invoice
+import gcs_service
 
 
 
@@ -17,6 +19,7 @@ PROJECT_ID = os.getenv("PROJECT_ID")
 DATASET = os.getenv("DATASET")
 TABLE = os.getenv("TABLE")
 TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}" 
+PDF_BASE_PATH=os.getenv("PDF_BASE_PATH")
 
 # ---- BigQuery client ----
 client = bigquery.Client(project=PROJECT_ID)
@@ -32,8 +35,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],        # Allow all HTTP methods
-    allow_headers=["*"],        # Allow all headers
+    allow_methods=["*"],        
+    allow_headers=["*"],        
 )
 
 @app.get("/")
@@ -42,15 +45,59 @@ def homeapi():
 
 
 
-@app.get("/allInvoices",response_model=List[schemas.Invoice]) 
+@app.get("/allInvoices",response_model=List[schemas.AllInvoices]) 
 def get_all_invoices():
     """Read all invoices """
     try:
         sql=f"""
-        SELECT * FROM `{TABLE_FQN}`
+        SELECT invoice_id,invoice_number,original_creation_date,status,review_date,reviewed_by,minimum_confidence
+        FROM `{TABLE_FQN}`
         """
         rows = client.query(sql,location="us-central1").result()
         data=[dict(row) for row in rows]
+
+
+        def days_difference_cst_fixed(date_str: str) -> float:
+            # Ensure the string ends with 'CST' and split it off
+            print(date_str)
+            parts = date_str.strip().rsplit(" ", 1)
+            if len(parts) != 2 or parts[1].upper() != "CST":
+                return None
+            dt_part = parts[0]  # 'dd-mon-yyyy HH:MM:SS'
+
+            # Parse 'dd-mon-yyyy HH:MM:SS' allowing case-insensitive month
+            try:
+                date_section, time_section = dt_part.split(" ", 1)
+                day_str, mon_str, year_str = "","",""
+                if "-" in date_section:
+                    day_str, mon_str, year_str = date_section.split("-")
+                if ":" in date_section:
+                    day_str, mon_str, year_str = date_section.split(":")
+                if "/" in date_section:
+                    day_str, mon_str, year_str = date_section.split("/")
+                mon_norm = mon_str.title()  # e.g., 'dec' -> 'Dec', 'DEC' -> 'Dec'
+                normalized = f"{day_str}-{mon_norm}-{year_str} {time_section}"
+                naive = datetime.strptime(normalized, "%d-%b-%Y %H:%M:%S")
+            except Exception as e:
+                raise ValueError(f"Failed to parse date/time: {e}")
+
+            # Fixed CST: UTC−06:00 (no DST)
+            FIXED_CST = timezone(timedelta(hours=-6))
+            cst_dt = naive.replace(tzinfo=FIXED_CST)
+
+            # Compute difference in UTC for consistency
+            now_utc = datetime.now(timezone.utc)
+            delta = now_utc - cst_dt.astimezone(timezone.utc)
+
+            # Convert seconds to days
+            return int(delta.total_seconds() / 86400.0)
+
+        for row in data:
+            if row["original_creation_date"] !="" and row["original_creation_date"]!=None and row["original_creation_date"]!="string":
+                aging=days_difference_cst_fixed(row["original_creation_date"])
+                row["aging"]=aging
+            else:
+                row["aging"]=None
 
         return data
     except NotFound:
@@ -63,12 +110,13 @@ def get_all_invoices():
         raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
 
 
-@app.get("/search_invoice/:invoice_id",response_model=List[schemas.Invoice])
+@app.get("/search_invoice/:invoice_id",response_model=fetch_invoice.Invoice)
 def get_invoice(invoice_id: str):
     """Get invoice details by invoice id"""
     try:
         sql = f"""
-        SELECT *
+        SELECT
+        {fetch_invoice.fields}
         FROM `{TABLE_FQN}`
         WHERE invoice_id = @invoice_id
         """
@@ -82,7 +130,11 @@ def get_invoice(invoice_id: str):
             raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
         data=[dict(row) for row in job]
 
-        return data
+        pdf_name = f"{invoice_id}.pdf"
+        blob_path = f"{PDF_BASE_PATH}/{pdf_name}"
+
+        url=gcs_service.get_invoice_pdfs(invoice_id)
+        return {"invoice_id":invoice_id,"original_document_url":url[0],"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
     except Forbidden:
@@ -126,3 +178,39 @@ def insert_invoice(invoice_details:schemas.Invoice):
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"Internal server error {str(e)}") from e
     
+
+@app.put("/update_invoice")
+def update_invoice(payload:schemas.Invoice):
+    try:
+        invoice_json=payload.model_dump(mode="python",exclude_none=True,exclude_unset=True)
+        print()
+        fields=[]
+        params=[]
+        for k,v in invoice_json.items():
+            print(k,v)
+            if k=="invoice_id":
+                params.append(bigquery.ScalarQueryParameter(k,"STRING",v))
+                continue
+            elif isinstance(v,int):
+                params.append(bigquery.ScalarQueryParameter(k,"INT64",v))
+            elif isinstance(v,float):
+                params.append(bigquery.ScalarQueryParameter(k,"FLOAT64",v))
+            elif isinstance(v,str):
+                params.append(bigquery.ScalarQueryParameter(k,"STRING",v))
+            fields.append(k+"=@"+k)
+
+
+        sql=f"""
+        UPDATE {TABLE_FQN}
+        SET {",".join(fields)}
+        WHERE invoice_id=@invoice_id
+        """
+        job_config=bigquery.QueryJobConfig(query_parameters=params)
+        job=client.query(sql,job_config=job_config,location="us-central1").result()
+        return job.num_dml_affected_rows
+    except Forbidden as e:
+        raise HTTPException(status_code=403,detail="Access denied") from e
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e

@@ -177,7 +177,7 @@ class Invoice(BaseModel):
     MAWB_number_x4_cordinate:Optional[float]=Field(default=None)
     MAWB_number_y4_cordinate:Optional[float]=Field(default=None)
 
-    line_items:List[LineItems]
+    line_items:Optional[List[LineItems]]
 
     currency:Optional[str]=Field(default=None)
     currency_confidence_score:Optional[float]=Field(default=None)
@@ -199,3 +199,16 @@ class Invoice(BaseModel):
     reason_or_remarks:Optional[str]=Field(default=None)
     minimum_confidence:Optional[float]=Field(default=None)
     status:Optional[str]=Field(default=None)
+
+
+class AllInvoices(BaseModel):
+    invoice_id:str
+    invoice_number:Optional[str]=Field(default=None)
+    original_creation_date:Optional[str]=Field(default=None)
+    status:Optional[str]=Field(default=None)
+    review_date:Optional[str]=Field(default=None)
+    reviewed_by:Optional[str]=Field(default=None)
+    minimum_confidence:Optional[float]=Field(default=None)
+    aging:Optional[int]=Field(default=None)
+
+    
