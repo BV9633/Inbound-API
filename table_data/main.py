@@ -8,7 +8,7 @@ from datetime import datetime,timedelta,timezone
 from dotenv import load_dotenv
 import schemas
 import fetch_invoice
-
+import gcs_service
 
 
 
@@ -19,6 +19,7 @@ PROJECT_ID = os.getenv("PROJECT_ID")
 DATASET = os.getenv("DATASET")
 TABLE = os.getenv("TABLE")
 TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}" 
+PDF_BASE_PATH=os.getenv("PDF_BASE_PATH")
 
 # ---- BigQuery client ----
 client = bigquery.Client(project=PROJECT_ID)
@@ -128,8 +129,12 @@ def get_invoice(invoice_id: str):
         if not job:
             raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
         data=[dict(row) for row in job]
-        url=None
-        return {"invoice_id":invoice_id,"original_document_url":url,"evaluation_data":data[0]}
+
+        pdf_name = f"{invoice_id}.pdf"
+        blob_path = f"{PDF_BASE_PATH}/{pdf_name}"
+
+        url=gcs_service.get_invoice_pdfs(invoice_id)
+        return {"invoice_id":invoice_id,"original_document_url":url[0],"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
     except Forbidden:
@@ -173,3 +178,39 @@ def insert_invoice(invoice_details:schemas.Invoice):
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"Internal server error {str(e)}") from e
     
+
+@app.put("/update_invoice")
+def update_invoice(payload:schemas.Invoice):
+    try:
+        invoice_json=payload.model_dump(mode="python",exclude_none=True,exclude_unset=True)
+        print()
+        fields=[]
+        params=[]
+        for k,v in invoice_json.items():
+            print(k,v)
+            if k=="invoice_id":
+                params.append(bigquery.ScalarQueryParameter(k,"STRING",v))
+                continue
+            elif isinstance(v,int):
+                params.append(bigquery.ScalarQueryParameter(k,"INT64",v))
+            elif isinstance(v,float):
+                params.append(bigquery.ScalarQueryParameter(k,"FLOAT64",v))
+            elif isinstance(v,str):
+                params.append(bigquery.ScalarQueryParameter(k,"STRING",v))
+            fields.append(k+"=@"+k)
+
+
+        sql=f"""
+        UPDATE {TABLE_FQN}
+        SET {",".join(fields)}
+        WHERE invoice_id=@invoice_id
+        """
+        job_config=bigquery.QueryJobConfig(query_parameters=params)
+        job=client.query(sql,job_config=job_config,location="us-central1").result()
+        return job.num_dml_affected_rows
+    except Forbidden as e:
+        raise HTTPException(status_code=403,detail="Access denied") from e
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e

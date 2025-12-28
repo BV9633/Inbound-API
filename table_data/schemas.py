@@ -177,7 +177,7 @@ class Invoice(BaseModel):
     MAWB_number_x4_cordinate:Optional[float]=Field(default=None)
     MAWB_number_y4_cordinate:Optional[float]=Field(default=None)
 
-    line_items:List[LineItems]
+    line_items:Optional[List[LineItems]]
 
     currency:Optional[str]=Field(default=None)
     currency_confidence_score:Optional[float]=Field(default=None)
