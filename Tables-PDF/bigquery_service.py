@@ -1,12 +1,12 @@
 from google.cloud import bigquery
-from config import PROJECT_ID, DATASET_ID, TABLE_ID
+from config import PROJECT_ID, BQ_DATASET, BQ_TABLE
 
 client = bigquery.Client(project=PROJECT_ID)
 
 def get_invoice_data(invoice_id: str):
     query = f"""
         SELECT *
-        FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}`
+        FROM `{PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE}`
         WHERE invoice_id = @invoice_id
     """
 

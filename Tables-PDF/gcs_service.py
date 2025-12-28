@@ -1,30 +1,24 @@
 from google.cloud import storage
-from datetime import timedelta
-from config import PROJECT_ID, BUCKET_NAME
+from config import PROJECT_ID, GCS_BUCKET, GCS_PREFIX
 
-storage_client = storage.Client(project=PROJECT_ID)
+client = storage.Client(project=PROJECT_ID)
 
-def get_signed_pdf_urls(invoice_id: str):
-    bucket = storage_client.bucket(BUCKET_NAME)
+def get_invoice_pdfs(invoice_id: str):
+    bucket = client.bucket(GCS_BUCKET)
 
-    prefix = (
-        "DarkDataTransformation/"
-        "DocumentAI/Classifier_Output/"
-        "Commercial_Invoice/"
+    blobs = client.list_blobs(
+        GCS_BUCKET,
+        prefix=GCS_PREFIX + invoice_id
     )
 
-    signed_urls = []
+    pdf_urls = []
 
-    for blob in bucket.list_blobs(prefix=prefix):
-        if invoice_id in blob.name and blob.name.lower().endswith(".pdf"):
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=30),
-                method="GET",
+    for blob in blobs:
+        if blob.name.lower().endswith("_commercial_invoice.pdf"):
+            url = (
+                f"https://storage.cloud.google.com/"
+                f"{GCS_BUCKET}/{blob.name}"
             )
-            signed_urls.append({
-                "file_name": blob.name.split("/")[-1],
-                "signed_url": url
-            })
+            pdf_urls.append(url)
 
-    return signed_urls
+    return pdf_urls
