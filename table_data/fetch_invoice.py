@@ -11,10 +11,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(invoice_number_x1_cordinate AS x, invoice_number_y1_cordinate AS y),
-                STRUCT(invoice_number_x2_cordinate AS x, invoice_number_y2_cordinate AS y),
-                STRUCT(invoice_number_x3_cordinate AS x, invoice_number_y3_cordinate AS y),
-                STRUCT(invoice_number_x4_cordinate AS x, invoice_number_y4_cordinate AS y)
+                STRUCT(invoice_number_x1_coordinate AS x, invoice_number_y1_coordinate AS y),
+                STRUCT(invoice_number_x2_coordinate AS x, invoice_number_y2_coordinate AS y),
+                STRUCT(invoice_number_x3_coordinate AS x, invoice_number_y3_coordinate AS y),
+                STRUCT(invoice_number_x4_coordinate AS x, invoice_number_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS invoice_number,   
@@ -27,10 +27,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(Incoterm_x1_cordinate AS x, Incoterm_y1_cordinate AS y),
-                STRUCT(Incoterm_x2_cordinate AS x, Incoterm_y2_cordinate AS y),
-                STRUCT(Incoterm_x3_cordinate AS x, Incoterm_y3_cordinate AS y),
-                STRUCT(Incoterm_x4_cordinate AS x, Incoterm_y4_cordinate AS y)
+                STRUCT(Incoterm_x1_coordinate AS x, Incoterm_y1_coordinate AS y),
+                STRUCT(Incoterm_x2_coordinate AS x, Incoterm_y2_coordinate AS y),
+                STRUCT(Incoterm_x3_coordinate AS x, Incoterm_y3_coordinate AS y),
+                STRUCT(Incoterm_x4_coordinate AS x, Incoterm_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS Incoterm,
@@ -43,10 +43,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(commercial_invoice_value_x1_cordinate AS x, commercial_invoice_value_y1_cordinate AS y),
-                STRUCT(commercial_invoice_value_x2_cordinate AS x, commercial_invoice_value_y2_cordinate AS y),
-                STRUCT(commercial_invoice_value_x3_cordinate AS x, commercial_invoice_value_y3_cordinate AS y),
-                STRUCT(commercial_invoice_value_x4_cordinate AS x, commercial_invoice_value_y4_cordinate AS y)
+                STRUCT(commercial_invoice_value_x1_coordinate AS x, commercial_invoice_value_y1_coordinate AS y),
+                STRUCT(commercial_invoice_value_x2_coordinate AS x, commercial_invoice_value_y2_coordinate AS y),
+                STRUCT(commercial_invoice_value_x3_coordinate AS x, commercial_invoice_value_y3_coordinate AS y),
+                STRUCT(commercial_invoice_value_x4_coordinate AS x, commercial_invoice_value_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS commercial_invoice_value,
@@ -59,10 +59,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(supplier_name_x1_cordinate AS x, supplier_name_y1_cordinate AS y),
-                STRUCT(supplier_name_x2_cordinate AS x, supplier_name_y2_cordinate AS y),
-                STRUCT(supplier_name_x3_cordinate AS x, supplier_name_y3_cordinate AS y),
-                STRUCT(supplier_name_x4_cordinate AS x, supplier_name_y4_cordinate AS y)
+                STRUCT(supplier_name_x1_coordinate AS x, supplier_name_y1_coordinate AS y),
+                STRUCT(supplier_name_x2_coordinate AS x, supplier_name_y2_coordinate AS y),
+                STRUCT(supplier_name_x3_coordinate AS x, supplier_name_y3_coordinate AS y),
+                STRUCT(supplier_name_x4_coordinate AS x, supplier_name_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS supplier_name,
@@ -75,10 +75,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(supplier_location_x1_cordinate AS x, supplier_location_y1_cordinate AS y),
-                STRUCT(supplier_location_x2_cordinate AS x, supplier_location_y2_cordinate AS y),
-                STRUCT(supplier_location_x3_cordinate AS x, supplier_location_y3_cordinate AS y),
-                STRUCT(supplier_location_x4_cordinate AS x, supplier_location_y4_cordinate AS y)
+                STRUCT(supplier_location_x1_coordinate AS x, supplier_location_y1_coordinate AS y),
+                STRUCT(supplier_location_x2_coordinate AS x, supplier_location_y2_coordinate AS y),
+                STRUCT(supplier_location_x3_coordinate AS x, supplier_location_y3_coordinate AS y),
+                STRUCT(supplier_location_x4_coordinate AS x, supplier_location_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS supplier_location,
@@ -91,10 +91,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(HAWB_number_x1_cordinate AS x, HAWB_number_y1_cordinate AS y),
-                STRUCT(HAWB_number_x2_cordinate AS x, HAWB_number_y2_cordinate AS y),
-                STRUCT(HAWB_number_x3_cordinate AS x, HAWB_number_y3_cordinate AS y),
-                STRUCT(HAWB_number_x4_cordinate AS x, HAWB_number_y4_cordinate AS y)
+                STRUCT(HAWB_number_x1_coordinate AS x, HAWB_number_y1_coordinate AS y),
+                STRUCT(HAWB_number_x2_coordinate AS x, HAWB_number_y2_coordinate AS y),
+                STRUCT(HAWB_number_x3_coordinate AS x, HAWB_number_y3_coordinate AS y),
+                STRUCT(HAWB_number_x4_coordinate AS x, HAWB_number_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS HAWB_number,
@@ -107,10 +107,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(MAWB_number_x1_cordinate AS x, MAWB_number_y1_cordinate AS y),
-                STRUCT(MAWB_number_x2_cordinate AS x, MAWB_number_y2_cordinate AS y),
-                STRUCT(MAWB_number_x3_cordinate AS x, MAWB_number_y3_cordinate AS y),
-                STRUCT(MAWB_number_x4_cordinate AS x, MAWB_number_y4_cordinate AS y)
+                STRUCT(MAWB_number_x1_coordinate AS x, MAWB_number_y1_coordinate AS y),
+                STRUCT(MAWB_number_x2_coordinate AS x, MAWB_number_y2_coordinate AS y),
+                STRUCT(MAWB_number_x3_coordinate AS x, MAWB_number_y3_coordinate AS y),
+                STRUCT(MAWB_number_x4_coordinate AS x, MAWB_number_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS MAWB_number,
@@ -124,10 +124,10 @@ fields="""
                 ARRAY<
                 STRUCT<x FLOAT64, y FLOAT64>
                 >[
-                STRUCT(currency_x1_cordinate AS x, currency_y1_cordinate AS y),
-                STRUCT(currency_x2_cordinate AS x, currency_y2_cordinate AS y),
-                STRUCT(currency_x3_cordinate AS x, currency_y3_cordinate AS y),
-                STRUCT(currency_x4_cordinate AS x, currency_y4_cordinate AS y)
+                STRUCT(currency_x1_coordinate AS x, currency_y1_coordinate AS y),
+                STRUCT(currency_x2_coordinate AS x, currency_y2_coordinate AS y),
+                STRUCT(currency_x3_coordinate AS x, currency_y3_coordinate AS y),
+                STRUCT(currency_x4_coordinate AS x, currency_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
         ) AS currency,
@@ -147,10 +147,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.part_number_x1_cordinate AS x, li.part_number_y1_cordinate AS y),
-                    STRUCT(li.part_number_x2_cordinate AS x, li.part_number_y2_cordinate AS y),
-                    STRUCT(li.part_number_x3_cordinate AS x, li.part_number_y3_cordinate AS y),
-                    STRUCT(li.part_number_x4_cordinate AS x, li.part_number_y4_cordinate AS y)
+                    STRUCT(li.part_number_x1_coordinate AS x, li.part_number_y1_coordinate AS y),
+                    STRUCT(li.part_number_x2_coordinate AS x, li.part_number_y2_coordinate AS y),
+                    STRUCT(li.part_number_x3_coordinate AS x, li.part_number_y3_coordinate AS y),
+                    STRUCT(li.part_number_x4_coordinate AS x, li.part_number_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS part_number,
@@ -163,10 +163,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.unit_price_x1_cordinate AS x, li.unit_price_y1_cordinate AS y),
-                    STRUCT(li.unit_price_x2_cordinate AS x, li.unit_price_y2_cordinate AS y),
-                    STRUCT(li.unit_price_x3_cordinate AS x, li.unit_price_y3_cordinate AS y),
-                    STRUCT(li.unit_price_x4_cordinate AS x, li.unit_price_y4_cordinate AS y)
+                    STRUCT(li.unit_price_x1_coordinate AS x, li.unit_price_y1_coordinate AS y),
+                    STRUCT(li.unit_price_x2_coordinate AS x, li.unit_price_y2_coordinate AS y),
+                    STRUCT(li.unit_price_x3_coordinate AS x, li.unit_price_y3_coordinate AS y),
+                    STRUCT(li.unit_price_x4_coordinate AS x, li.unit_price_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS unit_price,
@@ -179,10 +179,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.Total_Value_x1_cordinate AS x, li.Total_Value_y1_cordinate AS y),
-                    STRUCT(li.Total_Value_x2_cordinate AS x, li.Total_Value_y2_cordinate AS y),
-                    STRUCT(li.Total_Value_x3_cordinate AS x, li.Total_Value_y3_cordinate AS y),
-                    STRUCT(li.Total_Value_x4_cordinate AS x, li.Total_Value_y4_cordinate AS y)
+                    STRUCT(li.Total_Value_x1_coordinate AS x, li.Total_Value_y1_coordinate AS y),
+                    STRUCT(li.Total_Value_x2_coordinate AS x, li.Total_Value_y2_coordinate AS y),
+                    STRUCT(li.Total_Value_x3_coordinate AS x, li.Total_Value_y3_coordinate AS y),
+                    STRUCT(li.Total_Value_x4_coordinate AS x, li.Total_Value_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS Total_Value,
@@ -195,10 +195,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.Quantity_x1_cordinate AS x, li.Quantity_y1_cordinate AS y),
-                    STRUCT(li.Quantity_x2_cordinate AS x, li.Quantity_y2_cordinate AS y),
-                    STRUCT(li.Quantity_x3_cordinate AS x, li.Quantity_y3_cordinate AS y),
-                    STRUCT(li.Quantity_x4_cordinate AS x, li.Quantity_y4_cordinate AS y)
+                    STRUCT(li.Quantity_x1_coordinate AS x, li.Quantity_y1_coordinate AS y),
+                    STRUCT(li.Quantity_x2_coordinate AS x, li.Quantity_y2_coordinate AS y),
+                    STRUCT(li.Quantity_x3_coordinate AS x, li.Quantity_y3_coordinate AS y),
+                    STRUCT(li.Quantity_x4_coordinate AS x, li.Quantity_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS Quantity,
@@ -211,10 +211,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.country_of_origin_x1_cordinate AS x, li.country_of_origin_y1_cordinate AS y),
-                    STRUCT(li.country_of_origin_x2_cordinate AS x, li.country_of_origin_y2_cordinate AS y),
-                    STRUCT(li.country_of_origin_x3_cordinate AS x, li.country_of_origin_y3_cordinate AS y),
-                    STRUCT(li.country_of_origin_x4_cordinate AS x, li.country_of_origin_y4_cordinate AS y)
+                    STRUCT(li.country_of_origin_x1_coordinate AS x, li.country_of_origin_y1_coordinate AS y),
+                    STRUCT(li.country_of_origin_x2_coordinate AS x, li.country_of_origin_y2_coordinate AS y),
+                    STRUCT(li.country_of_origin_x3_coordinate AS x, li.country_of_origin_y3_coordinate AS y),
+                    STRUCT(li.country_of_origin_x4_coordinate AS x, li.country_of_origin_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS country_of_origin,
@@ -227,10 +227,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.PO_x1_cordinate AS x, li.PO_y1_cordinate AS y),
-                    STRUCT(li.PO_x2_cordinate AS x, li.PO_y2_cordinate AS y),
-                    STRUCT(li.PO_x3_cordinate AS x, li.PO_y3_cordinate AS y),
-                    STRUCT(li.PO_x4_cordinate AS x, li.PO_y4_cordinate AS y)
+                    STRUCT(li.PO_x1_coordinate AS x, li.PO_y1_coordinate AS y),
+                    STRUCT(li.PO_x2_coordinate AS x, li.PO_y2_coordinate AS y),
+                    STRUCT(li.PO_x3_coordinate AS x, li.PO_y3_coordinate AS y),
+                    STRUCT(li.PO_x4_coordinate AS x, li.PO_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS PO,
@@ -243,10 +243,10 @@ fields="""
                     ARRAY<
                     STRUCT<x FLOAT64, y FLOAT64>
                     >[
-                    STRUCT(li.ASN_x1_cordinate AS x, li.ASN_y1_cordinate AS y),
-                    STRUCT(li.ASN_x2_cordinate AS x, li.ASN_y2_cordinate AS y),
-                    STRUCT(li.ASN_x3_cordinate AS x, li.ASN_y3_cordinate AS y),
-                    STRUCT(li.ASN_x4_cordinate AS x, li.ASN_y4_cordinate AS y)
+                    STRUCT(li.ASN_x1_coordinate AS x, li.ASN_y1_coordinate AS y),
+                    STRUCT(li.ASN_x2_coordinate AS x, li.ASN_y2_coordinate AS y),
+                    STRUCT(li.ASN_x3_coordinate AS x, li.ASN_y3_coordinate AS y),
+                    STRUCT(li.ASN_x4_coordinate AS x, li.ASN_y4_coordinate AS y)
                     ] AS normalized_vectors
                     ) AS bounding_box
                 ) AS ASN
