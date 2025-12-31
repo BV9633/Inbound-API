@@ -134,6 +134,18 @@ def get_invoice(invoice_id: str):
         blob_path = f"{PDF_BASE_PATH}/{pdf_name}"
 
         url=gcs_service.get_invoice_pdfs(invoice_id)
+        #update the status
+        update_sql=f"""
+        UPDATE {TABLE_FQN}
+        SET status= 'Review in Progress'
+        WHERE invoice_id=@invoice_id
+        """
+        
+        job1=client.query(update_sql,job_config=job_config,location="us-central1").result()
+        if job1.num_dml_affected_rows==0:
+            raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
+
+
         return {"invoice_id":invoice_id,"original_document_url":url[0],"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
@@ -214,3 +226,28 @@ def update_invoice(payload:schemas.Invoice):
         raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e
+    
+
+@app.put("/cancel_update",response_model=int)
+def cancel_update(payload:schemas.Cancel_invoice):
+    try:
+        sql=f"""
+        UPDATE {TABLE_FQN}
+        SET status=@status
+        WHERE invoice_id=@invoice_id
+        """
+        params=[
+            bigquery.ScalarQueryParameter("invoice_id","STRING",payload.invoice_id),
+            bigquery.ScalarQueryParameter("status","STRING",payload.status)
+        ]
+        job_config=bigquery.QueryJobConfig(query_parameters=params)
+        job=client.query(sql,job_config=job_config,location="us-central1").result()
+        if job.num_dml_affected_rows==0:
+            raise HTTPException(status_code=404,detail=f"invoice id {str(payload.invoice_id)} not found")
+        return job.num_dml_affected_rows
+    except Forbidden as e:
+        raise HTTPException(status_code=403,detail="Access denied") from e
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e 

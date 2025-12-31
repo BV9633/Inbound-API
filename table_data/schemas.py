@@ -211,4 +211,7 @@ class AllInvoices(BaseModel):
     minimum_confidence:Optional[float]=Field(default=None)
     aging:Optional[int]=Field(default=None)
 
-    
+
+class Cancel_invoice(BaseModel):
+    invoice_id:str
+    status:str
