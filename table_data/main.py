@@ -10,6 +10,7 @@ import schemas
 import fetch_invoice
 import gcs_service
 import update2
+import document_ai_service1
 
 
 
@@ -21,7 +22,7 @@ DATASET = os.getenv("DATASET")
 TABLE = os.getenv("TABLE")
 TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}" 
 PDF_BASE_PATH=os.getenv("PDF_BASE_PATH")
-
+BUCKET=os.getenv("BUCKET_NAME")
 # ---- BigQuery client ----
 client = bigquery.Client(project=PROJECT_ID)
 
@@ -226,3 +227,101 @@ def cancel_update(payload:schemas.Cancel_invoice):
         raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e 
+    
+
+
+@app.post("/revalidate-invoice/{invoice_id}")
+def revalidate_invoice(invoice_id: str):
+    """
+    UI clicks Revalidation →
+    1. Fetch invoice from BigQuery
+    2. Build PDF GCS path
+    3. Call Document AI
+    4. Update BigQuery
+    """
+
+    try:
+        # ---------- STEP 1: CHECK INVOICE EXISTS ----------
+        sql = f"""
+        SELECT invoice_id
+        FROM `{TABLE_FQN}`
+        WHERE invoice_id = @invoice_id
+        """
+        print("working1")
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter(
+                    "invoice_id", "STRING", invoice_id
+                )
+            ]
+        )
+
+        rows = list(
+            client.query(sql, job_config=job_config).result()
+        )
+        print("working2")
+        if not rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Invoice {invoice_id} not found"
+            )
+
+        # ---------- STEP 2: BUILD PDF PATH ----------
+        pdf_gcs_path=gcs_service.get_invoice_pdfs(invoice_id)
+        pdf_url=""
+        if len(pdf_gcs_path):
+            pdf_url=pdf_gcs_path[0].replace("https://storage.cloud.google.com/","gs://",1)
+        
+        print("working3")
+        # ---------- STEP 3: CALL DOCUMENT AI ----------
+        extracted = document_ai_service1.process_document(
+            file_path=pdf_url,
+            invoice_id=invoice_id
+        )
+        print("working4")
+
+        # ---------- STEP 4: UPDATE BIGQUERY ----------
+        current_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        update_sql = f"""
+        UPDATE {TABLE_FQN}
+        SET
+        minimum_confidence = @min_conf,
+        status = @status
+        WHERE invoice_id = @invoice_id;
+        """
+
+        min_conf = min(
+            [v["confidence"] for v in extracted["header_fields"].values()]
+        ) if extracted["header_fields"] else 0.0
+
+        update_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("invoice_id", "STRING", invoice_id),
+                bigquery.ScalarQueryParameter(
+                    "min_conf", "FLOAT64", min_conf
+                ),
+                bigquery.ScalarQueryParameter("status","STRING","Pending Review")
+               # bigquery.ScalarQueryParameter("last_updated_date","STRING",str(current_timestamp))
+               #last_updated_date = @last_updated_date
+
+            ]
+        )
+
+        job=client.query(update_sql, job_config=update_config).result()
+        print("working5")
+
+        return {
+            "invoice_id": invoice_id,
+            "status": "REVALIDATED",
+            "message": "Invoice reclassification completed successfully",
+            "evaluation_data":extracted
+        }
+
+    except HTTPException:
+        raise
+    except Forbidden:
+        raise HTTPException(status_code=403, detail="Access denied")
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
