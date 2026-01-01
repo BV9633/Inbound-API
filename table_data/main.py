@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import schemas
 import fetch_invoice
 import gcs_service
+import update2
 
 
 
@@ -59,7 +60,6 @@ def get_all_invoices():
 
         def days_difference_cst_fixed(date_str: str) -> float:
             # Ensure the string ends with 'CST' and split it off
-            print(date_str)
             parts = date_str.strip().rsplit(" ", 1)
             if len(parts) != 2 or parts[1].upper() != "CST":
                 return None
@@ -93,7 +93,7 @@ def get_all_invoices():
             return int(delta.total_seconds() / 86400.0)
 
         for row in data:
-            if row["original_creation_date"] !="" and row["original_creation_date"]!=None and row["original_creation_date"]!="string":
+            if row["original_creation_date"] !="" and row["original_creation_date"] is not None :
                 aging=days_difference_cst_fixed(row["original_creation_date"])
                 row["aging"]=aging
             else:
@@ -114,6 +114,8 @@ def get_all_invoices():
 def get_invoice(invoice_id: str):
     """Get invoice details by invoice id"""
     try:
+
+        #Get all the details
         sql = f"""
         SELECT
         {fetch_invoice.fields}
@@ -134,6 +136,7 @@ def get_invoice(invoice_id: str):
         blob_path = f"{PDF_BASE_PATH}/{pdf_name}"
 
         url=gcs_service.get_invoice_pdfs(invoice_id)
+        
         #update the status
         update_sql=f"""
         UPDATE {TABLE_FQN}
@@ -145,7 +148,7 @@ def get_invoice(invoice_id: str):
         if job1.num_dml_affected_rows==0:
             raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
 
-
+        #return the details
         return {"invoice_id":invoice_id,"original_document_url":url[0],"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
@@ -189,44 +192,16 @@ def insert_invoice(invoice_details:schemas.Invoice):
         return "invoice inserted sucessfully"
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"Internal server error {str(e)}") from e
-    
 
 @app.put("/update_invoice")
-def update_invoice(payload:schemas.Invoice):
+def update_invoice(payload:fetch_invoice.Update_invoice):
     try:
-        invoice_json=payload.model_dump(mode="python",exclude_none=True,exclude_unset=True)
-        print()
-        fields=[]
-        params=[]
-        for k,v in invoice_json.items():
-            print(k,v)
-            if k=="invoice_id":
-                params.append(bigquery.ScalarQueryParameter(k,"STRING",v))
-                continue
-            elif isinstance(v,int):
-                params.append(bigquery.ScalarQueryParameter(k,"INT64",v))
-            elif isinstance(v,float):
-                params.append(bigquery.ScalarQueryParameter(k,"FLOAT64",v))
-            elif isinstance(v,str):
-                params.append(bigquery.ScalarQueryParameter(k,"STRING",v))
-            fields.append(k+"=@"+k)
-
-
-        sql=f"""
-        UPDATE {TABLE_FQN}
-        SET {",".join(fields)}
-        WHERE invoice_id=@invoice_id
-        """
-        job_config=bigquery.QueryJobConfig(query_parameters=params)
-        job=client.query(sql,job_config=job_config,location="us-central1").result()
-        return job.num_dml_affected_rows
-    except Forbidden as e:
-        raise HTTPException(status_code=403,detail="Access denied") from e
-    except GoogleAPICallError as e:
-        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
-    except Exception as e:
-        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e
+        payload_json=payload.model_dump(mode="python")
+        job=update2.process_frontend_payload(payload_json)
+        return job
     
+    except HTTPException as e:
+        raise HTTPException(status_code=500,detail=str(e))
 
 @app.put("/cancel_update",response_model=int)
 def cancel_update(payload:schemas.Cancel_invoice):

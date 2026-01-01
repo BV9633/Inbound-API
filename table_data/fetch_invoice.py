@@ -17,7 +17,23 @@ fields="""
                 STRUCT(invoice_number_x4_coordinate AS x, invoice_number_y4_coordinate AS y)
                 ] AS normalized_vectors
             ) AS bounding_box
-        ) AS invoice_number,   
+        ) AS invoice_number, 
+
+        STRUCT(
+            invoice_date AS value,
+            invoice_date_confidence_score AS confidence,
+            STRUCT (
+                invoice_date_page_number as page_number,
+                ARRAY<
+                STRUCT<x FLOAT64, y FLOAT64>
+                >[
+                STRUCT(invoice_date_x1_coordinate AS x, invoice_date_y1_coordinate AS y),
+                STRUCT(invoice_date_x2_coordinate AS x, invoice_date_y2_coordinate AS y),
+                STRUCT(invoice_date_x3_coordinate AS x, invoice_date_y3_coordinate AS y),
+                STRUCT(invoice_date_x4_coordinate AS x, invoice_date_y4_coordinate AS y)
+                ] AS normalized_vectors
+            ) AS bounding_box
+        ) AS invoice_date,  
 
         STRUCT(
             Incoterm AS value,
@@ -271,6 +287,7 @@ class Item(BaseModel):
 
 class Header_fields(BaseModel):
     invoice_number:Item
+    invoice_date:Item
     Incoterm:Item
     commercial_invoice_value:Item
     supplier_name:Item
@@ -307,4 +324,8 @@ class Evaluation_data(BaseModel):
 class Invoice(BaseModel):
     invoice_id:str
     original_document_url:Optional[str]=Field(default=None)
+    evaluation_data:Evaluation_data
+
+class Update_invoice(BaseModel):
+    invoice_id:str
     evaluation_data:Evaluation_data
