@@ -11,6 +11,7 @@ import fetch_invoice
 import gcs_service
 import update2
 import document_ai_service1
+import timestamp
 
 
 
@@ -139,15 +140,16 @@ def get_invoice(invoice_id: str):
         url=gcs_service.get_invoice_pdfs(invoice_id)
         
         #update the status
-        update_sql=f"""
-        UPDATE {TABLE_FQN}
-        SET status= 'Review in Progress'
-        WHERE invoice_id=@invoice_id
-        """
-        
-        job1=client.query(update_sql,job_config=job_config,location="us-central1").result()
-        if job1.num_dml_affected_rows==0:
-            raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
+        if data[0]["header_fields"]["status"].lower() !="processed":
+            update_sql=f"""
+            UPDATE {TABLE_FQN}
+            SET status= 'Review in Progress'
+            WHERE invoice_id=@invoice_id
+            """
+            
+            job1=client.query(update_sql,job_config=job_config,location="us-central1").result()
+            if job1.num_dml_affected_rows==0:
+                raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
 
         #return the details
         return {"invoice_id":invoice_id,"original_document_url":url[0],"evaluation_data":data[0]}
@@ -194,19 +196,35 @@ def insert_invoice(invoice_details:schemas.Invoice):
     except Exception as e:
         raise HTTPException(status_code=500,detail=f"Internal server error {str(e)}") from e
 
-@app.put("/update_invoice")
+        
+
+@app.put("/update_invoice",response_model=str)
 def update_invoice(payload:fetch_invoice.Update_invoice):
     try:
         payload_json=payload.model_dump(mode="python")
-        job=update2.process_frontend_payload(payload_json)
-        return job
-    
+        payload_json["evaluation_data"]["header_fields"]["status"]="Processed"
+        time=timestamp.get_timestamp()
+        print(time)
+        payload_json["evaluation_data"]["header_fields"]["last_updated_date"]=str(time)
+        sql=update2.process_frontend_payload(payload_json)
+        job=client.query(sql,location="us-central1").result()
+        if job.num_dml_affected_rows==0:
+            raise HTTPException(status_code=404,detail="Invoice Not found")
+        return f"{job.num_dml_affected_rows} rows updated successfully"
+    except NotFound:
+        raise HTTPException(status_code=404,detail="Table not found")
+    except Forbidden:
+        raise HTTPException(status_code=403,detail="Access denied")
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
     except HTTPException as e:
-        raise HTTPException(status_code=500,detail=str(e))
+        raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
 
-@app.put("/cancel_update",response_model=int)
+@app.put("/cancel_update",response_model=str)
 def cancel_update(payload:schemas.Cancel_invoice):
     try:
+        if payload.status.lower()=="processed":
+            return "updation changes are cancelled"
         sql=f"""
         UPDATE {TABLE_FQN}
         SET status=@status
@@ -220,7 +238,8 @@ def cancel_update(payload:schemas.Cancel_invoice):
         job=client.query(sql,job_config=job_config,location="us-central1").result()
         if job.num_dml_affected_rows==0:
             raise HTTPException(status_code=404,detail=f"invoice id {str(payload.invoice_id)} not found")
-        return job.num_dml_affected_rows
+        else:
+            return "updation changes are cancelled"
     except Forbidden as e:
         raise HTTPException(status_code=403,detail="Access denied") from e
     except GoogleAPICallError as e:
@@ -281,7 +300,7 @@ def revalidate_invoice(invoice_id: str):
         print("working4")
 
         # ---------- STEP 4: UPDATE BIGQUERY ----------
-        current_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_timestamp=timestamp.get_timestamp()
         update_sql = f"""
         UPDATE {TABLE_FQN}
         SET

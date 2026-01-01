@@ -130,7 +130,7 @@ class CommercialInvoiceUpdater:
         'currency_x3_coordinate', 'currency_y3_coordinate',
         'currency_x4_coordinate', 'currency_y4_coordinate',
         'reviewed_by', 'review_date', 'created_by', 'original_creation_date',
-        'reason_or_remarks', 'minimum_confidence', 'status'
+        'reason_or_remarks', 'minimum_confidence', 'status','last_updated_date'
     ]
     # Define all line item fields in exact order as schema
     LINE_ITEM_FIELDS = [
@@ -216,7 +216,7 @@ class CommercialInvoiceUpdater:
             line_items_sql = self._build_line_items_array(merged_items)
             set_clauses.append(f"line_items = {line_items_sql}")
         # Always update last_updated_date
-        set_clauses.append("last_updated_date = '2025-12-31'")
+        #set_clauses.append("last_updated_date = '2025-12-31'")
         if not set_clauses:
             print("No fields to update")
             return False
@@ -227,18 +227,15 @@ class CommercialInvoiceUpdater:
         WHERE invoice_id = '{self._escape_string(invoice_id)}'
         """
         # Save query to file for debugging
+        return update_query
        
-        print("Executing UPDATE query:")
-        print("(Query saved to debug_query.sql)")
-        print(f"Query length: {len(update_query)} characters")
-        print()
-        # Execute query
         try:
             query_job = self.client.query(update_query)
             query_job.result()
             print(f"✓ Successfully updated invoice_id: {invoice_id}")
             print(f"✓ Rows affected: {query_job.num_dml_affected_rows}")
             return True
+        
         except Exception as e:
             print(f"✗ Error updating table: {e}")
             print(f"✗ Check debug_query.sql for the full query")
