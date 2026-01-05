@@ -204,8 +204,8 @@ def update_invoice(payload:fetch_invoice.Update_invoice):
         payload_json=payload.model_dump(mode="python")
         payload_json["evaluation_data"]["header_fields"]["status"]="Processed"
         time=timestamp.get_timestamp()
-        print(time)
         payload_json["evaluation_data"]["header_fields"]["last_updated_date"]=str(time)
+        payload_json["evaluation_data"]["header_fields"]["review_date"]=str(time)
         sql=update2.process_frontend_payload(payload_json)
         job=client.query(sql,location="us-central1").result()
         if job.num_dml_affected_rows==0:
@@ -266,7 +266,6 @@ def revalidate_invoice(invoice_id: str):
         FROM `{TABLE_FQN}`
         WHERE invoice_id = @invoice_id
         """
-        print("working1")
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter(
@@ -278,7 +277,6 @@ def revalidate_invoice(invoice_id: str):
         rows = list(
             client.query(sql, job_config=job_config).result()
         )
-        print("working2")
         if not rows:
             raise HTTPException(
                 status_code=404,
@@ -291,13 +289,11 @@ def revalidate_invoice(invoice_id: str):
         if len(pdf_gcs_path):
             pdf_url=pdf_gcs_path[0].replace("https://storage.cloud.google.com/","gs://",1)
         
-        print("working3")
         # ---------- STEP 3: CALL DOCUMENT AI ----------
         extracted = document_ai_service1.process_document(
             file_path=pdf_url,
             invoice_id=invoice_id
         )
-        print("working4")
 
         # ---------- STEP 4: UPDATE BIGQUERY ----------
         current_timestamp=timestamp.get_timestamp()
@@ -327,14 +323,15 @@ def revalidate_invoice(invoice_id: str):
         )
 
         job=client.query(update_sql, job_config=update_config).result()
-        print("working5")
-
-        return {
+        del extracted["invoice_id"]
+        data= {
             "invoice_id": invoice_id,
-            "status": "REVALIDATED",
-            "message": "Invoice reclassification completed successfully",
+            #"status": "REVALIDATED",
+            #"message": "Invoice reclassification completed successfully",
+            "original_document_url":None,
             "evaluation_data":extracted
         }
+        return data
 
     except HTTPException:
         raise

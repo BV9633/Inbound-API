@@ -22,22 +22,20 @@ assert PROCESSOR_ID, "PROCESSOR_ID must be set"
 assert PROCESSOR_VERSION, "PROCESSOR_VERSION must be set"
 
 
-def format_bounding_boxes(page_anchor) -> List[Dict[str, Any]]:
+def format_bounding_boxes(page_anchor):
     """
     Convert page_anchor.page_refs to normalized bounding box format
     """
-    boxes = []
+    boxes ={}
     if page_anchor and page_anchor.page_refs:
-        for ref in page_anchor.page_refs:
-            bp = ref.bounding_poly
-            if bp and bp.normalized_vertices:
-                boxes.append({
-                    "page_number": int(ref.page),
-                    "normalized_vertices": [
-                        {"x": v.x, "y": v.y}
-                        for v in bp.normalized_vertices
-                    ]
-                })
+        bp = page_anchor.page_refs[0]
+        print(bp)
+        if "page" in bp:
+            boxes["page_number"]=int(bp.page)
+        else:
+            boxes["page_number"]=None
+        boxes["normalized_vertices"]= [{"x": v.x, "y": v.y} for v in bp.bounding_poly.normalized_vertices]
+            
     return boxes
 
 
@@ -45,6 +43,7 @@ def field_entry(entity) -> Dict[str, Any]:
     """
     Build field entry with value, confidence, and bounding box
     """
+    print(entity.mention_text)
     return {
         "value": entity.mention_text or "",
         "confidence": float(entity.confidence or 0.0),
@@ -122,16 +121,16 @@ def process_document(file_path: str, invoice_id: str) -> Dict[str, Any]:
         if entity.type_ == "commercial_invoice":
             line_item = {
                 "line_item_id": entity.id,
-                "fields": {}
+                "header_fields": {}
             }
             for child in entity.properties:
-                line_item["fields"][child.type_] = field_entry(child)
+                line_item["header_fields"][child.type_] = field_entry(child)
             extracted["line_items"].append(line_item)
         
         # Process header fields
         elif entity.type_ in header_fields:
+            print(entity.type_)
             extracted["header_fields"][entity.type_] = field_entry(entity)
     
     logger.info(f"Extracted {len(extracted['header_fields'])} header fields and {len(extracted['line_items'])} line items")
-    print(extracted)
     return extracted
