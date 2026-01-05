@@ -48,7 +48,7 @@ def Home():
     return "API is working"
 
 
-@app.get("/all_waybils",response_model=List[all_waybills_schema.All_waybills])
+@app.get("/all_waybills",response_model=List[all_waybills_schema.All_waybills])
 def all_waybills():
     """Display all waybills"""
     try:
@@ -102,7 +102,7 @@ def search_waybill(waybill_id:str):
             raise HTTPException(status_code=404,detail=f"No waybill found with id {str(waybill_id)}")
         
         pdf_name = f"{waybill_id}"
-        if data[0]["header_fields"]["transportation_mode"]["value"].lower()=="sea":
+        if data[0]["header_fields"]["transportation_mode"]["value"].lower()=="sea" or data[0]["header_fields"]["transportation_mode"]["value"].lower()=="marine" :
             pdf_name+="sea_waybill.pdf"
         else:
             pdf_name+"air_waybill.pdf"
@@ -113,7 +113,7 @@ def search_waybill(waybill_id:str):
         else:
             url=None
         #update the status
-        if data[0]["header_fields"]["status"].lower() !="processed":
+        if data[0]["header_fields"]["status"].lower() !="processed" or data[0]["header_fields"]["status"].lower() !="extraction successful":
             update_sql=f"""
             UPDATE {TABLE_FQN}
             SET status= 'Review in Progress'

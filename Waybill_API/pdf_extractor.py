@@ -15,7 +15,7 @@ def get_waybill_pdfs(waybill_id: str,mode:str):
     bucket = client.bucket(GCS_BUCKET)
 
     GCS_PREFIX=""
-    if mode.lower()=="sea":
+    if mode.lower()=="sea" or mode.lower()=="marine":
         GCS_PREFIX = (
             "DarkDataTransformation/DocumentAI/"
             "Classifier_Output/Sea_Waybill/"
