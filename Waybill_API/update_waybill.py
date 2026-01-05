@@ -197,9 +197,7 @@ class CommercialwaybillUpdater:
             # Merge existing with new line_items
             merged_items = self._merge_line_items(existing_items, line_items)
             # Build line_items array
-            print({"merged_items":merged_items})
             line_items_sql = self._build_line_items_array(line_items)
-            print(line_items_sql)
             set_clauses.append(f"line_items = {line_items_sql}")
         # Always update last_updated_date
         #set_clauses.append("last_updated_date = '2025-12-31'")
@@ -410,21 +408,9 @@ def process_frontend_payload(frontend_payload_json: str):
         frontend_payload = json.loads(frontend_payload_json)
     else:
         frontend_payload = frontend_payload_json
-    print("=" * 80)
-    print("STEP 1: Transform frontend payload to BigQuery format")
-    print("=" * 80)
-    # Transform payload
+
     transformed_data = transformer.transform_payload(frontend_payload)
-    print("Transformed Data:")
-    print(json.dumps(transformed_data, indent=2))
-    print()
-    print("=" * 80)
-    print("STEP 2: Update BigQuery table")
-    print("=" * 80)
-    # Update BigQuery
+
     success = updater.update_waybill(transformed_data)
-    if success:
-        print("\n✓ Process completed successfully!")
-    else:
-        print("\n✗ Process failed!")
+
     return success

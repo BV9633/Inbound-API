@@ -24,19 +24,19 @@ TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}"
 PDF_BASE_PATH=os.getenv("PDF_BASE_PATH")
 BUCKET=os.getenv("BUCKET_NAME")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS")
-
+MINIMUM_CONFIDENCE=os.getenv("MINIMUM_CONFIDENCE")
 
 # ---- BigQuery client ----
 client = bigquery.Client(project=PROJECT_ID)
 
 
 
-app=FastAPI(title="WayBill APi")
+app=FastAPI(title="WayBill API")
 
  
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],        
     allow_headers=["*"],        
@@ -167,11 +167,13 @@ def cancel_update(payload:cancel_schema.Cancel_waybill):
 def waybill_update(payload:fetch_waybill_schema.Update_waybill):
     try:
         payload_json=payload.model_dump(mode="python")
+        if "waybill_id" not in payload_json:
+            raise HTTPException(status_code=404,detail="Waybill id not found")
         payload_json["evaluation_data"]["header_fields"]["status"]="Processed"
         time=timestamp.get_timestamp()
         payload_json["evaluation_data"]["header_fields"]["last_updated_date"]=str(time)
+        payload_json["evaluation_data"]["header_fields"]["review_date"]=str(time)
         sql=update_waybill.process_frontend_payload(payload_json)
-        print(sql)
         job=client.query(sql,location="us-central1").result()
         if job.num_dml_affected_rows==0:
             raise HTTPException(status_code=404,detail="waybill Not found")
