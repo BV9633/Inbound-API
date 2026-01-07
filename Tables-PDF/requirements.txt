@@ -1,4 +1,0 @@
-fastapi 
-uvicorn 
-google-cloud-bigquery 
-google-cloud-storage
