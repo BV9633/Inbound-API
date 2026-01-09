@@ -5,8 +5,9 @@ from fastapi import HTTPException,APIRouter
 from google.cloud import bigquery
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
 from dotenv import load_dotenv
-from cbp import age_calculator,timestamp,pdf_extractor,fetch_cbp,update_cbp
+from cbp import timestamp,pdf_extractor,fetch_cbp,update_cbp
 from cbp.cbp_schemas import all_cbp_schema,cancel_schema,fetch_cbp_schema
+import age_calculator
 
 load_dotenv()
 
@@ -87,7 +88,7 @@ def search_cbp(cbp_id:str):
         else:
             url=None
         #update the status
-        if data[0]["header_fields"]["status"].lower() !="processed" or data[0]["header_fields"]["status"].lower() !="extraction successful":
+        if data[0]["header_fields"]["status"].lower() !="processed" and data[0]["header_fields"]["status"].lower() !="extraction successful":
             update_sql=f"""
             UPDATE {TABLE_FQN}
             SET status= 'Review in Progress'

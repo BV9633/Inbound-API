@@ -6,7 +6,8 @@ from google.cloud import bigquery
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
 from dotenv import load_dotenv
 from  waybill.waybill_schemas import all_waybills_schema,fetch_waybill_schema,cancel_schema
-from waybill import fetch_waybill,pdf_extractor,timestamp,update_waybill,age_calculator
+from waybill import fetch_waybill,pdf_extractor,timestamp,update_waybill
+import age_calculator
 
 
 
@@ -86,19 +87,14 @@ def search_waybill(waybill_id:str):
         if not data or not len(data):
             raise HTTPException(status_code=404,detail=f"No waybill found with id {str(waybill_id)}")
         
-        pdf_name = f"{waybill_id}"
-        if data[0]["header_fields"]["transportation_mode"]["value"].lower()=="sea" or data[0]["header_fields"]["transportation_mode"]["value"].lower()=="marine" :
-            pdf_name+="sea_waybill.pdf"
-        else:
-            pdf_name+"air_waybill.pdf"
         
-        url=pdf_extractor.get_waybill_pdfs(waybill_id,data[0]["header_fields"]["transportation_mode"]["value"])
+        url=pdf_extractor.get_waybill_pdfs(waybill_id)
         if len(url):
             url=url[0]
         else:
             url=None
         #update the status
-        if data[0]["header_fields"]["status"].lower() !="processed" or data[0]["header_fields"]["status"].lower() !="extraction successful":
+        if data[0]["header_fields"]["status"].lower() !="processed" and data[0]["header_fields"]["status"].lower() !="extraction successful":
             update_sql=f"""
             UPDATE {TABLE_FQN}
             SET status= 'Review in Progress'
