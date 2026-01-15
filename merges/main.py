@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from waybill import waybill_main
 from cbp import cbp_main
 from invoice import invoice_main
-
+from dashboard import dashboard_main
 load_dotenv()
 
 app=FastAPI()
@@ -15,6 +15,7 @@ app=FastAPI()
 app.include_router(waybill_main.waybill_router)
 app.include_router(cbp_main.cbp_router)
 app.include_router(invoice_main.invoice_router)
+app.include_router(dashboard_main.dashboard_router)
 
 CORS_ORIGINS = os.getenv("CORS_ORIGIN")
 
