@@ -146,6 +146,7 @@ def cancel_update(payload:cancel_schema.Cancel_waybill):
     
 @waybill_router.put("/update_waybill")
 def waybill_update(payload:fetch_waybill_schema.Update_waybill):
+    """Updates the Waybill"""
     try:
         payload_json=payload.model_dump(mode="python")
         if "waybill_id" not in payload_json:

@@ -6,8 +6,7 @@ from typing import List
 from fastapi import APIRouter,HTTPException
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
 from google.cloud import bigquery
-from dashboard.dashboard_schemas import pending_review_documents_schema,recent_documents_schema,documents_count_schema
-from dashboard import historical_data
+from dashboard.dashboard_schemas import pending_review_documents_schema,recent_documents_schema,documents_count_schema,data_schema
 load_dotenv()
 
 #config variable
@@ -203,69 +202,7 @@ def get_recent_documents():
         raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
     
 
-@dashboard_router.get("/historical_data/{document_type}")
-def get_historical_data(document_type:str):
-    try:
-        if document_type.lower() not in ["invoice","waybill","cbp"]:
-            raise HTTPException(status_code=400,detail=f"No document available named {document_type}")
-
-        fields= historical_data.historical_data_fields(document_type)
-        TABLE=INVOICE_TABLE_FQN
-        if document_type.lower()=="waybill":
-            TABLE=WAYBILL_TABLE_FQN
-        elif document_type.lower()=="cbp":
-            TABLE=CBP_TABLE_FQN
-
-        sql=f"""  
-        WITH base_data AS (
-        SELECT 
-            {",".join(fields["fields_list"])}
-            EXTRACT(YEAR FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S %Z', REPLACE(original_creation_date, 'CST', 'America/Chicago'))) AS year_value,
-            EXTRACT(MONTH FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S %Z', REPLACE(original_creation_date, 'CST', 'America/Chicago'))) AS month_value
-        FROM `its-compute-sc-rmapchat-d.its_sc_rmapchat_bq_ddtransfm_us_sfdc_d.table_commercial_invoice` AS t
-        LEFT JOIN UNNEST(t.line_items) AS l -- Line items must be unnested first
-        )
-
-        SELECT 
-        field_name, 
-        year_value, 
-        month_value, 
-        COUNT(id) AS low_confidence_count
-        FROM (
-        -- Unpivot Normal Fields
-        SELECT * FROM base_data
-        UNPIVOT(
-            (id, confidence_score) FOR field_name IN (
-            (invoice_number, invoice_number_confidence_score) AS 'invoice_number',
-            (incoterm, incoterm_confidence_score) AS 'incoterm'
-            -- Add other h_list pairs here
-            )
-        )
-        UNION ALL
-        -- Unpivot Nested Fields
-        SELECT * FROM base_data
-        UNPIVOT(
-            (id, confidence_score) FOR field_name IN (
-            (part_number, part_number_confidence_score) AS 'part_number'
-            -- Add other l_list pairs here
-            )
-        )
-        )
-        WHERE confidence_score < 100
-        GROUP BY field_name, year_value, month_value
-        ORDER BY low_confidence_count DESC
-        LIMIT 1000;
-"""
-        print(sql)
-        job=client.query(sql).result()
-        data=[dict(row) for row in job]
-        return data
-
-    except HTTPException as e:
-        raise HTTPException(status_code=500,detail=f"Internal server error {str(e)}")
-    
-
-@dashboard_router.get("/all_processed_documents/{filter}")
+@dashboard_router.get("/all_processed_documents/{filter}",response_model=data_schema.All_processed_documents)
 def get_all_processed_documents(filter:str):
     try:
         sql=""
@@ -449,8 +386,14 @@ def get_all_processed_documents(filter:str):
             }
         }
         return formatted_response
+    except NotFound:
+        raise HTTPException(status_code=404,detail="Table not found")
+    except Forbidden:
+        raise HTTPException(status_code=403,detail="Access denied")
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
     except HTTPException as e:
-        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}")
+        raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
     
 @dashboard_router.get("/processed_documents/{filter}")
 def get_processed_documents(filter:str):
@@ -615,5 +558,11 @@ def get_processed_documents(filter:str):
             "series": data
         }
 
+    except NotFound:
+        raise HTTPException(status_code=404,detail="Table not found")
+    except Forbidden:
+        raise HTTPException(status_code=403,detail="Access denied")
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
     except HTTPException as e:
-        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}")
+        raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e

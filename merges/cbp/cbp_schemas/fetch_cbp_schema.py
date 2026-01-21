@@ -39,10 +39,13 @@ class Header_fields(BaseModel):
     HAWB_number: Item
     MAWB_number: Item
     mnfst_quantity: Item
+    mnfst_quantity_uom: Item    
     gross_weight: Item
+    gross_weight_uom: Item
     container_number: Item
     seal_number: Item
     SLAC: Item
+    SLAC_uom:Item
     Value_in_dollars: Item
 
     reviewed_by:str | None

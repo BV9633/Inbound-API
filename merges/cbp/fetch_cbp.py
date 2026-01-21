@@ -4,17 +4,17 @@ fields="""
     STRUCT(
       STRUCT(
         entry_no_1 AS value,
-      entry_no_1_confidence_score AS confidence,
-  STRUCT(
-    entry_no_1_page_number AS page_number,
-    [
-      STRUCT(entry_no_1_x1_coordinate AS x, entry_no_1_y1_coordinate AS y),
-      STRUCT(entry_no_1_x2_coordinate AS x, entry_no_1_y2_coordinate AS y),
-      STRUCT(entry_no_1_x3_coordinate AS x, entry_no_1_y3_coordinate AS y),
-      STRUCT(entry_no_1_x4_coordinate AS x, entry_no_1_y4_coordinate AS y)
-    ] AS normalized_vectors
-  ) AS bounding_box
-) AS entry_no_1,
+        entry_no_1_confidence_score AS confidence,
+        STRUCT(
+          entry_no_1_page_number AS page_number,
+          [
+            STRUCT(entry_no_1_x1_coordinate AS x, entry_no_1_y1_coordinate AS y),
+            STRUCT(entry_no_1_x2_coordinate AS x, entry_no_1_y2_coordinate AS y),
+            STRUCT(entry_no_1_x3_coordinate AS x, entry_no_1_y3_coordinate AS y),
+            STRUCT(entry_no_1_x4_coordinate AS x, entry_no_1_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS entry_no_1,
 
       STRUCT(
         entry_no_2 AS value,
@@ -339,6 +339,20 @@ fields="""
       ) AS mnfst_quantity,
 
       STRUCT(
+        mnfst_quantity_uom AS value,
+        mnfst_quantity_uom_confidence_score AS confidence,
+        STRUCT(
+          mnfst_quantity_uom_page_number AS page_number,
+          [
+            STRUCT(mnfst_quantity_uom_x1_coordinate AS x, mnfst_quantity_uom_y1_coordinate AS y),
+            STRUCT(mnfst_quantity_uom_x2_coordinate AS x, mnfst_quantity_uom_y2_coordinate AS y),
+            STRUCT(mnfst_quantity_uom_x3_coordinate AS x, mnfst_quantity_uom_y3_coordinate AS y),
+            STRUCT(mnfst_quantity_uom_x4_coordinate AS x, mnfst_quantity_uom_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS mnfst_quantity_uom,
+
+      STRUCT(
         gross_weight AS value,
         gross_weight_confidence_score AS confidence,
         STRUCT(
@@ -351,6 +365,20 @@ fields="""
           ] AS normalized_vectors
         ) AS bounding_box
       ) AS gross_weight,
+
+      STRUCT(
+        gross_weight_uom AS value,
+        gross_weight_uom_confidence_score AS confidence,
+        STRUCT(
+          gross_weight_uom_page_number AS page_number,
+          [
+            STRUCT(gross_weight_uom_x1_coordinate AS x, gross_weight_uom_y1_coordinate AS y),
+            STRUCT(gross_weight_uom_x2_coordinate AS x, gross_weight_uom_y2_coordinate AS y),
+            STRUCT(gross_weight_uom_x3_coordinate AS x, gross_weight_uom_y3_coordinate AS y),
+            STRUCT(gross_weight_uom_x4_coordinate AS x, gross_weight_uom_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS gross_weight_uom,
 
       STRUCT(
         container_number AS value,
@@ -393,6 +421,20 @@ fields="""
           ] AS normalized_vectors
         ) AS bounding_box
       ) AS SLAC,
+
+      STRUCT(
+        SLAC_uom AS value,
+        SLAC_uom_confidence_score AS confidence,
+        STRUCT(
+          SLAC_uom_page_number AS page_number,
+          [
+            STRUCT(SLAC_uom_x1_coordinate AS x, SLAC_uom_y1_coordinate AS y),
+            STRUCT(SLAC_uom_x2_coordinate AS x, SLAC_uom_y2_coordinate AS y),
+            STRUCT(SLAC_uom_x3_coordinate AS x, SLAC_uom_y3_coordinate AS y),
+            STRUCT(SLAC_uom_x4_coordinate AS x, SLAC_uom_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS SLAC_uom,
       
       STRUCT(
         Value_in_dollars AS value,

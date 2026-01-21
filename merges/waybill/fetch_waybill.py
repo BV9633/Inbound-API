@@ -15,6 +15,7 @@ fields="""
           ] AS normalized_vectors
         ) AS bounding_box
       ) AS HAWB_number,
+
       STRUCT(
         country_of_export AS value,
         country_of_export_confidence_score AS confidence,
@@ -86,7 +87,7 @@ fields="""
         ) AS bounding_box
       ) AS airport_of_destination,
 
-        STRUCT(
+      STRUCT(
         port_of_loading AS value,
         port_of_loading_confidence_score AS confidence,
         STRUCT(
@@ -188,6 +189,48 @@ fields="""
         ) AS bounding_box
       ) AS total_quantity,
 
+      STRUCT(
+        total_quantity_uom AS value,
+        total_quantity_uom_confidence_score AS confidence,
+        STRUCT(
+          total_quantity_uom_page_number AS page_number,
+          [
+            STRUCT(total_quantity_uom_x1_coordinate AS x, total_quantity_uom_y1_coordinate AS y),
+            STRUCT(total_quantity_uom_x2_coordinate AS x, total_quantity_uom_y2_coordinate AS y),
+            STRUCT(total_quantity_uom_x3_coordinate AS x, total_quantity_uom_y3_coordinate AS y),
+            STRUCT(total_quantity_uom_x4_coordinate AS x, total_quantity_uom_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS total_quantity_uom,
+
+      STRUCT(
+        volume AS value,
+        volume_confidence_score AS confidence,
+        STRUCT(
+          volume_page_number AS page_number,
+          [
+            STRUCT(volume_x1_coordinate AS x, volume_y1_coordinate AS y),
+            STRUCT(volume_x2_coordinate AS x, volume_y2_coordinate AS y),
+            STRUCT(volume_x3_coordinate AS x, volume_y3_coordinate AS y),
+            STRUCT(volume_x4_coordinate AS x, volume_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS volume,
+
+      STRUCT(
+        volume_uom AS value,
+        volume_uom_confidence_score AS confidence,
+        STRUCT(
+          volume_uom_page_number AS page_number,
+          [
+            STRUCT(volume_uom_x1_coordinate AS x, volume_uom_y1_coordinate AS y),
+            STRUCT(volume_uom_x2_coordinate AS x, volume_uom_y2_coordinate AS y),
+            STRUCT(volume_uom_x3_coordinate AS x, volume_uom_y3_coordinate AS y),
+            STRUCT(volume_uom_x4_coordinate AS x, volume_uom_y4_coordinate AS y)
+          ] AS normalized_vectors
+        ) AS bounding_box
+      ) AS volume_uom,
+
       reviewed_by AS reviewed_by,
       review_date AS review_date,
       created_by AS created_by,
@@ -205,7 +248,7 @@ fields="""
       SELECT AS STRUCT
         li.line_item_id AS line_item_id,
         STRUCT(
-          -- container_number
+
           STRUCT(
             li.container_number AS value,
             li.container_number_confidence_score AS confidence,
@@ -265,6 +308,20 @@ fields="""
             ) AS bounding_box
           ) AS mnfst_qty,
 
+          STRUCT(
+            mnfst_qty_uom AS value,
+            mnfst_qty_uom_confidence_score AS confidence,
+            STRUCT(
+              mnfst_qty_uom_page_number AS page_number,
+              [
+                STRUCT(li.mnfst_qty_uom_x1_coordinate AS x, li.mnfst_qty_uom_y1_coordinate AS y),
+                STRUCT(li.mnfst_qty_uom_x2_coordinate AS x, li.mnfst_qty_uom_y2_coordinate AS y),
+                STRUCT(li.mnfst_qty_uom_x3_coordinate AS x, li.mnfst_qty_uom_y3_coordinate AS y),
+                STRUCT(li.mnfst_qty_uom_x4_coordinate AS x, li.mnfst_qty_uom_y4_coordinate AS y)
+              ] AS normalized_vectors
+            ) AS bounding_box
+          ) AS mnfst_qty_uom,          
+
           -- SLAC
           STRUCT(
             li.SLAC AS value,
@@ -279,6 +336,20 @@ fields="""
               ] AS normalized_vectors
             ) AS bounding_box
           ) AS SLAC,
+
+          STRUCT(
+            li.SLAC_uom AS value,
+            li.SLAC_uom_confidence_score AS confidence,
+            STRUCT(
+              li.SLAC_uom_page_number AS page_number,
+              [
+                STRUCT(li.SLAC_uom_x1_coordinate AS x, li.SLAC_uom_y1_coordinate AS y),
+                STRUCT(li.SLAC_uom_x2_coordinate AS x, li.SLAC_uom_y2_coordinate AS y),
+                STRUCT(li.SLAC_uom_x3_coordinate AS x, li.SLAC_uom_y3_coordinate AS y),
+                STRUCT(li.SLAC_uom_x4_coordinate AS x, li.SLAC_uom_y4_coordinate AS y)
+              ] AS normalized_vectors
+            ) AS bounding_box
+          ) AS SLAC_uom,
 
           -- gross_weight
           STRUCT(
@@ -295,6 +366,20 @@ fields="""
             ) AS bounding_box
           ) AS gross_weight,
 
+          STRUCT(
+            gross_weight_uom AS value,
+            gross_weight_uom_confidence_score AS confidence,
+            STRUCT(
+              gross_weight_uom_page_number AS page_number,
+              [
+                STRUCT(li.gross_weight_uom_x1_coordinate AS x, li.gross_weight_uom_y1_coordinate AS y),
+                STRUCT(li.gross_weight_uom_x2_coordinate AS x, li.gross_weight_uom_y2_coordinate AS y),
+                STRUCT(li.gross_weight_uom_x3_coordinate AS x, li.gross_weight_uom_y3_coordinate AS y),
+                STRUCT(li.gross_weight_uom_x4_coordinate AS x, li.gross_weight_uom_y4_coordinate AS y)
+              ] AS normalized_vectors
+            ) AS bounding_box
+          ) AS gross_weight_uom,
+
           -- chargable_weight
           STRUCT(
             li.chargable_weight AS value,
@@ -310,20 +395,20 @@ fields="""
             ) AS bounding_box
           ) AS chargable_weight,
 
-          -- volume
           STRUCT(
-            li.volume AS value,
-            li.volume_confidence_score AS confidence,
+            chargable_weight_uom AS value,
+            chargable_weight_uom_confidence_score AS confidence,
             STRUCT(
-              li.volume_page_number AS page_number,
+              chargable_weight_uom_page_number AS page_number,
               [
-                STRUCT(li.volume_x1_coordinate AS x, li.volume_y1_coordinate AS y),
-                STRUCT(li.volume_x2_coordinate AS x, li.volume_y2_coordinate AS y),
-                STRUCT(li.volume_x3_coordinate AS x, li.volume_y3_coordinate AS y),
-                STRUCT(li.volume_x4_coordinate AS x, li.volume_y4_coordinate AS y)
+                STRUCT(li.chargable_weight_uom_x1_coordinate AS x, li.chargable_weight_uom_y1_coordinate AS y),
+                STRUCT(li.chargable_weight_uom_x2_coordinate AS x, li.chargable_weight_uom_y2_coordinate AS y),
+                STRUCT(li.chargable_weight_uom_x3_coordinate AS x, li.chargable_weight_uom_y3_coordinate AS y),
+                STRUCT(li.chargable_weight_uom_x4_coordinate AS x, li.chargable_weight_uom_y4_coordinate AS y)
               ] AS normalized_vectors
             ) AS bounding_box
-          ) AS volume
+          ) AS chargable_weight_uom
+
         ) AS header_fields
       FROM UNNEST(line_items) AS li
     ) AS line_items

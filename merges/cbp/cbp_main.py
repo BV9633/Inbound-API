@@ -35,7 +35,7 @@ def get_all_cbps():
     try:
         sql=f"""
         SELECT 
-        cbp_id,entry_no2 as cbp_number,original_creation_date,status,review_date,reviewed_by,minimum_confidence
+        cbp_id,entry_no_2 as cbp_number,original_creation_date,status,review_date,reviewed_by,minimum_confidence
         FROM {TABLE_FQN}
         """
         rows = client.query(sql,location="us-central1").result()

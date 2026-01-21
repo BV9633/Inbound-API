@@ -28,6 +28,9 @@ class Header_fields(BaseModel):
     MAWB_number:Item
     vessel_or_voyage:Item
     total_quantity:Item
+    total_quantity_uom:Item
+    volume:Item
+    volume_uom:Item
     reviewed_by:str | None
     review_date:str | None
     created_by:str | None
@@ -42,10 +45,13 @@ class Line_items_header_fields(BaseModel):
     seal_number:Item
     PO_number:Item
     mnfst_qty:Item
+    mnfst_qty_uom:Item
     SLAC:Item
+    SLAC_uom:Item
     gross_weight:Item
+    gross_weight_uom:Item
     chargable_weight:Item
-    volume:Item
+    chargable_weight_uom:Item
 
 class Line_items(BaseModel):
     line_item_id:str | None
