@@ -157,11 +157,11 @@ def global_search(SearchNumber: str):
 
         -- Waybill
         SELECT
+            waybill_id AS unique_id,
+            HAWB_Number AS document_number,
             "Waybill" AS document_type,
             HAWB_number,
             MAWB_number,
-            waybill_id AS unique_id,
-            HAWB_Number AS document_number,
             original_creation_date,
             status,
             review_date,
@@ -173,23 +173,23 @@ def global_search(SearchNumber: str):
             minimum_confidence
         FROM {WAYBILL_TABLE_FQN}
     )
-    WHERE HAWB_number = @hawb or MAWB_number=@mawb or document_number=@document;
+    WHERE
+      -- Apply the space-stripping logic to both sides of the comparison
+      REPLACE(HAWB_number, ' ', '') = REPLACE(@searchTerm, ' ', '') OR
+      REPLACE(MAWB_number, ' ', '') = REPLACE(@searchTerm, ' ', '') OR
+      REPLACE(document_number, ' ', '') = REPLACE(@searchTerm, ' ', '')
 
     """
 
-    params = [bigquery.ScalarQueryParameter("hawb", "STRING", SearchNumber),
-              bigquery.ScalarQueryParameter("mawb", "STRING", SearchNumber),
-              bigquery.ScalarQueryParameter("document", "STRING", SearchNumber)]
+    params = [bigquery.ScalarQueryParameter("searchTerm", "STRING", SearchNumber)]
     job_config = bigquery.QueryJobConfig(query_parameters=params)
 
     try:
         job = client.query(sql, job_config=job_config,location="us-central1")
         rows = [dict(r) for r in job.result()]
-
         if not rows:
             # Requirement: return exception if no data
             raise HTTPException(status_code=404, detail=f"No documents found for number: {SearchNumber}")
-
         return rows
 
     except NotFound:

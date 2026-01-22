@@ -329,7 +329,7 @@ def get_all_processed_documents(filter:str):
             GROUP BY c.slot_start, c.hour_label
             ORDER BY c.slot_start ASC;
             """
-        elif filter.lower()=="last 3 months":
+        elif filter.lower()=="quarterly":
             sql=f"""
                 WITH calendar AS (
                 -- Generate the first day of the current month and the two months prior
@@ -395,123 +395,44 @@ def get_all_processed_documents(filter:str):
     except HTTPException as e:
         raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
     
-@dashboard_router.get("/processed_documents/{filter}")
+@dashboard_router.get("/processed_documents/{filter}",response_model=data_schema.Processed_documents)
 def get_processed_documents(filter:str):
     try:
-        sql=""
+        # Setting days to 1 ensures the "age < 1" logic captures only today's data
+        days = 1 
         if filter.lower()=="weekly":
-            sql=f"""
-                WITH calendar AS (
-                    SELECT day_date, FORMAT_DATE('%a', day_date) AS label
-                    FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY), CURRENT_DATE())) AS day_date
-                ),
-                base_data AS (
-                    SELECT 'Invoice' as source, DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date)) as d, status, minimum_confidence FROM {INVOICE_TABLE_FQN}
-                    UNION ALL
-                    SELECT 'Waybill' as source, DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date)) as d, status, minimum_confidence FROM {WAYBILL_TABLE_FQN}
-                    UNION ALL
-                    SELECT 'CBP' as source, DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date)) as d, status, minimum_confidence FROM {CBP_TABLE_FQN}
-                )
-                SELECT 
-                    c.label,
-                    -- Individual Table Counts
-                    COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS invoice_auto,
-                    COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS invoice_manual,
-                    COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS waybill_auto,
-                    COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS waybill_manual,
-                    COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS cbp_auto,
-                    COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS cbp_manual,
-                    -- Combined Total Counts
-                    COUNTIF(LOWER(status) = 'processed' AND minimum_confidence >= 90) AS total_auto,
-                    COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual
-                FROM calendar c
-                LEFT JOIN base_data b ON c.day_date = b.d
-                GROUP BY c.day_date, c.label ORDER BY c.day_date ASC;
-            """
+            days=8
         elif filter.lower()=="monthly":
-            sql=f"""
-            WITH calendar AS (
-                SELECT day_date, FORMAT_DATE('%d-%b-%Y', day_date) AS label
-                FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY), CURRENT_DATE(), INTERVAL 5 DAY)) AS day_date
-            ),
-            base_data AS (
-                    SELECT 'Invoice' as source, DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date)) as d, status, minimum_confidence FROM {INVOICE_TABLE_FQN}
-                    UNION ALL
-                    SELECT 'Waybill' as source, DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date)) as d, status, minimum_confidence FROM {WAYBILL_TABLE_FQN}
-                    UNION ALL
-                    SELECT 'CBP' as source, DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date)) as d, status, minimum_confidence FROM {CBP_TABLE_FQN}
-                )
-            SELECT 
-                c.label,
-                -- Repeat COUNTIF structure from Weekly View...
-                COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS invoice_auto,
-                COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS invoice_manual,
-                COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS waybill_auto,
-                COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS waybill_manual,
-                COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS cbp_auto,
-                COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS cbp_manual,
-                    -- Combined Total Counts
-                COUNTIF(LOWER(status) = 'processed' AND minimum_confidence >= 90) AS total_auto,
-                COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual
-            FROM calendar c
-            LEFT JOIN base_data b ON b.d = c.day_date
-            GROUP BY c.day_date, c.label ORDER BY c.day_date ASC;
-            """
+            days=31
         elif filter.lower()=="daily":
-            sql=f"""
-                WITH calendar AS (
-                    SELECT slot, FORMAT_TIMESTAMP('%I %p', slot) AS label
-                    FROM UNNEST(GENERATE_TIMESTAMP_ARRAY(TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR), CURRENT_TIMESTAMP(), INTERVAL 3 HOUR)) AS slot
-                ),
+            days=1
+        elif filter.lower()=="quarterly":
+            days=120
+        sql = f"""
+            WITH 
                 base_data AS (
                     SELECT 'Invoice' as source, 
-                    TIMESTAMP_TRUNC(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date), HOUR) as ts, 
+                    DATE_DIFF(
+                        CURRENT_DATE('America/Chicago'),
+                        EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
+                        REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')), DAY) as age, 
                     status, minimum_confidence FROM {INVOICE_TABLE_FQN}
                     UNION ALL
                     SELECT 'Waybill' as source, 
-                    TIMESTAMP_TRUNC(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date), HOUR) as ts, 
+                    DATE_DIFF(
+                        CURRENT_DATE('America/Chicago'),
+                        EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
+                        REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')), DAY) as age,                    
                     status, minimum_confidence FROM {WAYBILL_TABLE_FQN}
                     UNION ALL
                     SELECT 'CBP' as source, 
-                    TIMESTAMP_TRUNC(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST', original_creation_date), HOUR) as ts, 
+                    DATE_DIFF(
+                        CURRENT_DATE('America/Chicago'),
+                        EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
+                        REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')), DAY) as age,
                     status, minimum_confidence FROM {CBP_TABLE_FQN}
                 )
                 SELECT 
-                    c.label,
-                    COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS invoice_auto,
-                    COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS invoice_manual,
-                    COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS waybill_auto,
-                    COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS waybill_manual,
-                    COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS cbp_auto,
-                    COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS cbp_manual,
-                        -- Combined Total Counts
-                    COUNTIF(LOWER(status) = 'processed' AND minimum_confidence >= 90) AS total_auto,
-                    COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual
-                FROM calendar c
-                LEFT JOIN base_data b ON b.ts >= c.slot AND b.ts < TIMESTAMP_ADD(c.slot, INTERVAL 3 HOUR)
-                GROUP BY c.slot, c.label ORDER BY c.slot ASC;
-            """
-        elif filter.lower()=="last 3 months":
-            sql=f"""
-                WITH calendar AS (
-                    SELECT m_date, FORMAT_DATE('%b', m_date) AS label
-                    FROM UNNEST(GENERATE_DATE_ARRAY(DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH), DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)) AS m_date
-                ),
-                base_data AS (
-                    SELECT 'Invoice' as source, 
-                    DATE_TRUNC(DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST',original_creation_date)), MONTH) as m_bucket,
-                    status, minimum_confidence FROM {INVOICE_TABLE_FQN}
-                    UNION ALL
-                    SELECT 'Waybill' as source, 
-                    DATE_TRUNC(DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST',original_creation_date)), MONTH) as m_bucket,
-                    status, minimum_confidence FROM {WAYBILL_TABLE_FQN}
-                    UNION ALL
-                    SELECT 'CBP' as source, 
-                    DATE_TRUNC(DATE(PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S CST',original_creation_date)), MONTH) as m_bucket,
-                    status, minimum_confidence FROM {CBP_TABLE_FQN}
-                )
-                SELECT 
-                    c.label,
                     COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS invoice_auto,
                     COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS invoice_manual,
                     COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS waybill_auto,
@@ -520,43 +441,13 @@ def get_processed_documents(filter:str):
                     COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS cbp_manual,
                     COUNTIF(LOWER(status) = 'processed' AND minimum_confidence >= 90) AS total_auto,
                     COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual
-                FROM calendar c
-                LEFT JOIN base_data b ON c.m_date = b.m_bucket
-                GROUP BY c.m_date, c.label ORDER BY c.m_date ASC;
-            """
+                FROM base_data
+                WHERE age<{days}
+        """
+        
         job=client.query(sql).result()
         results=[dict(row) for row in job]
-        xLabels = []
-        data = {
-            "total": {"auto": [], "manual": []},
-            "invoice": {"auto": [], "manual": []},
-            "waybill": {"auto": [], "manual": []},
-            "cbp": {"auto": [], "manual": []}
-        }
-
-        for row in results:
-            xLabels.append(row["label"])
-            
-            # Populate Totals
-            data["total"]["auto"].append(row["total_auto"])
-            data["total"]["manual"].append(row["total_manual"])
-            
-            # Populate Invoice
-            data["invoice"]["auto"].append(row["invoice_auto"])
-            data["invoice"]["manual"].append(row["invoice_manual"])
-            
-            # Populate Waybill
-            data["waybill"]["auto"].append(row["waybill_auto"])
-            data["waybill"]["manual"].append(row["waybill_manual"])
-            
-            # Populate CBP
-            data["cbp"]["auto"].append(row["cbp_auto"])
-            data["cbp"]["manual"].append(row["cbp_manual"])
-
-        return {
-            "xLabels": xLabels,
-            "series": data
-        }
+        return results[0]
 
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
