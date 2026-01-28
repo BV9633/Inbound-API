@@ -153,41 +153,39 @@ def get_pending_review_documents():
 def get_recent_documents():
     try:
         sql=f"""
-            SELECT invoice_id as unique_id,invoice_number as document_number, 'Invoice' as document_type,
-            original_creation_date,status,review_date,reviewed_by,minimum_confidence,
-            DATE_DIFF(
-            CURRENT_DATE('America/Chicago'),
-            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
-                REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')),DAY) AS aging
-            FROM {INVOICE_TABLE_FQN}
-            WHERE DATE_DIFF(
-            CURRENT_DATE('America/Chicago'),
-            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
-                REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')),DAY) <= {RECENT_DOCUMENTS_AGE}
-            UNION ALL
-            SELECT waybill_id as unique_id,HAWB_number as document_number, 'Waybill' as document_type,
-            original_creation_date,status,review_date,reviewed_by,minimum_confidence,
-            DATE_DIFF(
-            CURRENT_DATE('America/Chicago'),
-            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
-                REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')),DAY) AS aging
-            FROM {WAYBILL_TABLE_FQN}
-            WHERE DATE_DIFF(
-            CURRENT_DATE('America/Chicago'),
-            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
-                REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')),DAY) <= {RECENT_DOCUMENTS_AGE}
-            UNION ALL
-            SELECT cbp_id as unique_id,entry_no_2 as document_number, 'CBP' as document_type,
-            original_creation_date,status,review_date,reviewed_by,minimum_confidence,
-            DATE_DIFF(
-            CURRENT_DATE('America/Chicago'),
-            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
-                REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')),DAY) AS aging
-            FROM {CBP_TABLE_FQN}
-            WHERE DATE_DIFF(
-            CURRENT_DATE('America/Chicago'),
-            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
-                REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')),DAY) <= {RECENT_DOCUMENTS_AGE}
+            SELECT unique_id,document_number,document_type,original_creation_date,status,review_date,reviewed_by,
+            minimum_confidence,aging
+            FROM(
+                (
+                    SELECT invoice_id as unique_id, invoice_number as document_number, 'Invoice' as document_type,
+                        original_creation_date, status, review_date, reviewed_by, minimum_confidence,
+                        DATE_DIFF(CURRENT_DATE('America/Chicago'), 
+                            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S',REPLACE(original_creation_date,' CST',''), 
+                                'America/Chicago')), DAY) AS aging
+                    FROM {INVOICE_TABLE_FQN}
+                )
+                UNION ALL
+                (
+                    SELECT waybill_id as unique_id, HAWB_number as document_number, 'Waybill' as document_type,
+                        original_creation_date, status, review_date, reviewed_by, minimum_confidence,
+                        DATE_DIFF(CURRENT_DATE('America/Chicago'), 
+                            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S',REPLACE(original_creation_date,' CST',''), 
+                                'America/Chicago')), DAY) AS aging
+                    FROM {WAYBILL_TABLE_FQN}
+                )
+                UNION ALL
+                (
+                    SELECT cbp_id as unique_id, entry_no_2 as document_number, 'CBP' as document_type,
+                        original_creation_date, status, review_date, reviewed_by, minimum_confidence,
+                        DATE_DIFF(CURRENT_DATE('America/Chicago'), 
+                            EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S',REPLACE(original_creation_date,' CST',''), 
+                                'America/Chicago')), DAY) AS aging
+                    FROM {CBP_TABLE_FQN}
+                )
+            )
+            ORDER BY  PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
+            REPLACE(original_creation_date, ' CST', ''), 'America/Chicago') DESC
+            limit {RECENT_DOCUMENTS_AGE}
         """
         job=client.query(sql).result()
         data=[dict(row) for row in job]
@@ -205,6 +203,8 @@ def get_recent_documents():
 @dashboard_router.get("/all_processed_documents/{filter}",response_model=data_schema.All_processed_documents)
 def get_all_processed_documents(filter:str):
     try:
+        if filter.lower() not in ["daily","weekly","monthly","quartertly"]:
+            raise HTTPException(status_code=422,detail="Invalid input filter")
         sql=""
         data_string=f"""
             SELECT
@@ -398,6 +398,8 @@ def get_all_processed_documents(filter:str):
 @dashboard_router.get("/processed_documents/{filter}",response_model=data_schema.Processed_documents)
 def get_processed_documents(filter:str):
     try:
+        if filter.lower() not in ["daily","weekly","monthly","quartertly"]:
+            raise HTTPException(status_code=422,detail="Invalid input filter")
         # Setting days to 1 ensures the "age < 1" logic captures only today's data
         days = 1 
         if filter.lower()=="weekly":

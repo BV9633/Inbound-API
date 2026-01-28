@@ -7,6 +7,7 @@ from waybill import waybill_main
 from cbp import cbp_main
 from invoice import invoice_main
 from dashboard import dashboard_main,dashboard2
+from users import user_main
 load_dotenv()
 
 app=FastAPI()
@@ -17,6 +18,7 @@ app.include_router(cbp_main.cbp_router)
 app.include_router(invoice_main.invoice_router)
 app.include_router(dashboard_main.dashboard_router)
 app.include_router(dashboard2.dashboard_router)
+app.include_router(user_main.user_router)
 
 CORS_ORIGINS = os.getenv("CORS_ORIGIN")
 
