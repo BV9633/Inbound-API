@@ -105,10 +105,13 @@ def update_user_access(payload:user_access_schema.User_access):
 
         if payload_json["user_core_id"]==None or payload_json["user_core_id"]=="":
             raise HTTPException(status_code=422,detail="Invalid user_core_id")
-        
+        payload_json["last_updation_date"]=timestamp.get_timestamp()
+
         sql=f"""
             UPDATE {TABLE_FQN}
-            SET active_user= '{str(payload_json["active_user"])}'
+            SET active_user= {payload_json["active_user"]},
+                last_updated_by='{payload_json["last_updated_by"]}',
+                last_updation_date='{payload_json["last_updation_date"]}'
             WHERE user_core_id= '{str(payload_json["user_core_id"])}'
         """
         job=client.query(sql).result()
@@ -137,7 +140,7 @@ def update_user(payload:update_user_schema.Update_user):
         sql=f"""
             UPDATE {TABLE_FQN}
             SET role_of_user='{payload_json["role_of_user"]}',
-                active_user= '{str(payload_json["active_user"])}',
+                active_user= {payload_json["active_user"]},
                 last_updated_by='{payload_json["last_updated_by"]}',
                 last_updation_date='{payload_json["last_updation_date"]}'
             WHERE user_core_id= '{str(payload_json["user_core_id"])}'

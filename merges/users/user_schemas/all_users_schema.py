@@ -5,9 +5,9 @@ class All_users(BaseModel):
     user_email_address:str
     user_name:str
     role_of_user:str
-    active_user:str
+    active_user:bool
     last_updated_by:str
     created_by:str
     user_creation_date:str
     last_updation_date:str
-    Teams_name:str
+    teams_name:str

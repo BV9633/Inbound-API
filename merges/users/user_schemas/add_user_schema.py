@@ -5,7 +5,7 @@ class Add_new_user(BaseModel):
     user_email_address:str
     user_name:str
     role_of_user:str
-    active_user:str
+    active_user:bool
     created_by:str
-    Teams_name:str
+    teams_name:str
 
