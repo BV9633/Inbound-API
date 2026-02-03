@@ -403,11 +403,12 @@ def get_processed_documents(filter:str):
         # Setting days to 1 ensures the "age < 1" logic captures only today's data
         days = 1 
         if filter.lower()=="weekly":
-            days=8
+            days=7
+
         elif filter.lower()=="monthly":
-            days=31
+            days=30
         elif filter.lower()=="daily":
-            days=1
+            days=0
         elif filter.lower()=="quarterly":
             days=120
         sql = f"""
@@ -442,9 +443,12 @@ def get_processed_documents(filter:str):
                     COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS cbp_auto,
                     COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS cbp_manual,
                     COUNTIF(LOWER(status) = 'processed' AND minimum_confidence >= 90) AS total_auto,
-                    COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual
+                    COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual,
+                    CONCAT(FORMAT_DATE('%d %b %Y',DATE_SUB(CURRENT_DATE('America/Chicago'),INTERVAL {days} DAY)),
+                            ' to ',
+                            FORMAT_DATE('%d %b %Y',CURRENT_DATE('America/Chicago'))) as timeline
                 FROM base_data
-                WHERE age<{days}
+                WHERE age<={days}
         """
         
         job=client.query(sql).result()

@@ -6,7 +6,7 @@ from google.cloud import bigquery
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
 from dotenv import load_dotenv
 from cbp import timestamp,pdf_extractor,fetch_cbp,update_cbp
-from cbp.cbp_schemas import all_cbp_schema,cancel_schema,fetch_cbp_schema
+from cbp.cbp_schemas import all_cbp_schema,cancel_schema,fetch_cbp_schema,update_status_schema
 import age_calculator
 
 load_dotenv()
@@ -87,19 +87,6 @@ def search_cbp(cbp_id:str):
             url=url[0]
         else:
             url=None
-        #update the status
-        if data[0]["header_fields"]["status"].lower() !="processed" and data[0]["header_fields"]["status"].lower() !="extraction successful":
-            update_sql=f"""
-            UPDATE {TABLE_FQN}
-            SET status= 'Review in Progress'
-            WHERE cbp_id=@cbp_id
-            """
-            
-            job1=client.query(update_sql,job_config=job_config,location="us-central1").result()
-            if job1.num_dml_affected_rows==0:
-                raise HTTPException(status_code=404,detail=f"No cbp found with id {str(cbp_id)}")
-
-        #return the details
         return {"cbp_id":cbp_id,"original_document_url":url,"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
@@ -112,26 +99,51 @@ def search_cbp(cbp_id:str):
 
 
 
-@cbp_router.put("/cancel_update",response_model=str)
-def cancel_update(payload:cancel_schema.Cancel_CBP):
+@cbp_router.put("/cancel_update/{cbp_id}",response_model=str)
+def cancel_update(cbp_id:str):
     try:
-        if payload.status.lower()=="processed":
-            return "updation changes are cancelled"
+
         sql=f"""
         UPDATE {TABLE_FQN}
-        SET status=@status
+        SET status=@status,
+            reviewed_by=@reviewed_by
         WHERE cbp_id=@cbp_id
         """
         params=[
-            bigquery.ScalarQueryParameter("cbp_id","STRING",payload.cbp_id),
-            bigquery.ScalarQueryParameter("status","STRING",payload.status)
+            bigquery.ScalarQueryParameter("cbp_id","STRING",cbp_id),
+            bigquery.ScalarQueryParameter("reviewed_by","STRING",""),
+            bigquery.ScalarQueryParameter("status","STRING","Pending Review")
         ]
         job_config=bigquery.QueryJobConfig(query_parameters=params)
         job=client.query(sql,job_config=job_config,location="us-central1").result()
         if job.num_dml_affected_rows==0:
-            raise HTTPException(status_code=404,detail=f"cbp id {str(payload.cbp_id)} not found")
+            raise HTTPException(status_code=404,detail=f"cbp id {str(cbp_id)} not found")
         else:
             return "updation changes are cancelled"
+    except Forbidden as e:
+        raise HTTPException(status_code=403,detail="Access denied") from e
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e 
+
+
+@cbp_router.put("/update_status")
+def update_cbp_status(payload:update_status_schema.Update_status):
+    try:
+        payload_json=payload.model_dump(mode="python")
+        sql=f"""
+            UPDATE {TABLE_FQN}
+            SET status='Review in progress',
+                reviewed_by='{payload_json["reviewed_by"]}'
+            WHERE cbp_id='{payload_json["cbp_id"]}'
+        """
+        job=client.query(sql).result()
+        if job.num_dml_affected_rows==0:
+            raise HTTPException(status_code=404,detail=f"cbp id {payload_json["cbp_id"]} not found")
+        else:
+            return {"status":"Review in Progress","reviewed_by":payload_json["reviewed_by"]}
+        
     except Forbidden as e:
         raise HTTPException(status_code=403,detail="Access denied") from e
     except GoogleAPICallError as e:

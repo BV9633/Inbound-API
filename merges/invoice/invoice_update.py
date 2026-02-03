@@ -1,6 +1,16 @@
 from google.cloud import bigquery
 import json
 from typing import Dict, List, Any, Optional
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+PROJECT_ID = os.getenv("PROJECT_ID")
+DATASET = os.getenv("DATASET")
+TABLE = os.getenv("INVOICE_TABLE_NAME")
+TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}" 
+
 class PayloadTransformer:
     """Transform frontend payload to BigQuery update format"""
     def __init__(self):
@@ -172,13 +182,10 @@ class CommercialInvoiceUpdater:
         'ASN_x3_coordinate', 'ASN_y3_coordinate',
         'ASN_x4_coordinate', 'ASN_y4_coordinate'
     ]
-    def __init__(self, project_id: str, dataset_id: str, table_id: str):
+    def __init__(self, table_str:str):
         """Initialize the updater with table information"""
-        self.client = bigquery.Client(project=project_id)
-        self.project_id = project_id
-        self.dataset_id = dataset_id
-        self.table_id = table_id
-        self.full_table_id = f"`{project_id}.{dataset_id}.{table_id}`"
+
+        self.full_table_id = table_str
     def update_invoice(self, json_data: Dict[str, Any]) -> bool:
         """
         Update invoice based on JSON input. Only updates fields present in JSON.
@@ -228,18 +235,6 @@ class CommercialInvoiceUpdater:
         """
         # Save query to file for debugging
         return update_query
-       
-        try:
-            query_job = self.client.query(update_query)
-            query_job.result()
-            print(f"✓ Successfully updated invoice_id: {invoice_id}")
-            print(f"✓ Rows affected: {query_job.num_dml_affected_rows}")
-            return True
-        
-        except Exception as e:
-            print(f"✗ Error updating table: {e}")
-            print(f"✗ Check debug_query.sql for the full query")
-            return False
     def _fetch_existing_line_items(self, invoice_id: str) -> List[Dict[str, Any]]:
         """Fetch existing line_items for an invoice"""
         query = f"""
@@ -376,10 +371,7 @@ def process_frontend_payload(frontend_payload_json: str):
     """
     # Initialize transformer and updater
     transformer = PayloadTransformer()
-    project_id = "its-compute-sc-rmapchat-d"
-    dataset_id = "its_sc_rmapchat_bq_ddtransfm_us_sfdc_d"
-    table_id = "table_commercial_invoice"
-    updater = CommercialInvoiceUpdater(project_id, dataset_id, table_id)
+    updater = CommercialInvoiceUpdater(TABLE_FQN)
     # Parse frontend payload
     if isinstance(frontend_payload_json, str):
         frontend_payload = json.loads(frontend_payload_json)

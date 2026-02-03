@@ -212,6 +212,6 @@ class AllInvoices(BaseModel):
     aging:Optional[int]=Field(default=None)
 
 
-class Cancel_invoice(BaseModel):
+class Update_status(BaseModel):
     invoice_id:str
-    status:str
+    reviewed_by:str

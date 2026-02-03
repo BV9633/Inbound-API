@@ -1,6 +1,15 @@
 from google.cloud import bigquery
 import json
-from typing import Dict, List, Any, Optional
+import os
+from dotenv import load_dotenv
+from typing import Dict,Any
+
+load_dotenv()
+PROJECT_ID = os.getenv("PROJECT_ID")
+DATASET = os.getenv("DATASET")
+TABLE = os.getenv("CBP_TABLE_NAME")
+TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}" 
+
 class PayloadTransformer:
     """Transform frontend payload to BigQuery update format"""
     def __init__(self):
@@ -48,7 +57,7 @@ class PayloadTransformer:
                 # For fields without bounding box (like reviewed_by, status, etc.)
                 transformed[field_name] = field_data
 
-class CommercialcbpUpdater:
+class CBPUpdater:
     """Class to handle dynamic updates to commercial cbp table in BigQuery"""
     # Define all scalar fields (non-nested fields)
     SCALAR_FIELDS=[
@@ -142,10 +151,10 @@ class CommercialcbpUpdater:
         'mnfst_quantity', 'mnfst_quantity_confidence_score', 'mnfst_quantity_page_number', 'mnfst_quantity_x1_coordinate',
         'mnfst_quantity_y1_coordinate','mnfst_quantity_x2_coordinate', 'mnfst_quantity_y2_coordinate',
         'mnfst_quantity_x3_coordinate','mnfst_quantity_y3_coordinate', 'mnfst_quantity_x4_coordinate','mnfst_quantity_y4_coordinate', 
-        'mnfst_qty_uom','mnfst_qty_uom_confidence_score','mnfst_qty_uom_page_number','mnfst_qty_uom_x1_coordinate',
-        'mnfst_qty_uom_y1_coordinate','mnfst_qty_uom_x2_coordinate','mnfst_qty_uom_y2_coordinate',
-        'mnfst_qty_uom_x3_coordinate','mnfst_qty_uom_y3_coordinate','mnfst_qty_uom_x4_coordinate',
-        'mnfst_qty_uom_y4_coordinate',
+        'mnfst_quantity_uom','mnfst_quantity_uom_confidence_score','mnfst_quantity_uom_page_number','mnfst_quantity_uom_x1_coordinate',
+        'mnfst_quantity_uom_y1_coordinate','mnfst_quantity_uom_x2_coordinate','mnfst_quantity_uom_y2_coordinate',
+        'mnfst_quantity_uom_x3_coordinate','mnfst_quantity_uom_y3_coordinate','mnfst_quantity_uom_x4_coordinate',
+        'mnfst_quantity_uom_y4_coordinate',
         'gross_weight', 'gross_weight_confidence_score', 'gross_weight_page_number', 'gross_weight_x1_coordinate',
         'gross_weight_y1_coordinate', 'gross_weight_x2_coordinate', 'gross_weight_y2_coordinate',
         'gross_weight_x3_coordinate', 'gross_weight_y3_coordinate', 'gross_weight_x4_coordinate', 
@@ -175,13 +184,9 @@ class CommercialcbpUpdater:
         'reviewed_by', 'review_date', 'created_by', 'original_creation_date',
         'reason_or_remarks', 'minimum_confidence', 'status','last_updated_date'
     ]
-    def __init__(self, project_id: str, dataset_id: str, table_id: str):
+    def __init__(self, table_str:str):
         """Initialize the updater with table information"""
-        self.client = bigquery.Client(project=project_id)
-        self.project_id = project_id
-        self.dataset_id = dataset_id
-        self.table_id = table_id
-        self.full_table_id = f"`{project_id}.{dataset_id}.{table_id}`"
+        self.full_table_id = table_str
     def update_cbp(self, json_data: Dict[str, Any]) -> bool:
 
         # Parse JSON if string
@@ -193,7 +198,6 @@ class CommercialcbpUpdater:
         cbp_id = data.get('cbp_id')
         if not cbp_id:
             raise ValueError("cbp_id is required for update")
-        # Remove cbp_id from update data
         data.pop('cbp_id', None)
         # Build SET clauses
         set_clauses = []
@@ -249,10 +253,7 @@ def process_frontend_payload(frontend_payload_json: str):
     """
     # Initialize transformer and updater
     transformer = PayloadTransformer()
-    project_id = "its-compute-sc-rmapchat-d"
-    dataset_id = "its_sc_rmapchat_bq_ddtransfm_us_sfdc_d"
-    table_id = "table_cbp"
-    updater = CommercialcbpUpdater(project_id, dataset_id, table_id)
+    updater = CBPUpdater(TABLE_FQN)
     # Parse frontend payload
     if isinstance(frontend_payload_json, str):
         frontend_payload = json.loads(frontend_payload_json)

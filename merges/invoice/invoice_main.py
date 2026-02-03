@@ -1,7 +1,6 @@
 """Invoice main file"""
 import os
 from typing import List
-from datetime import datetime,timedelta,timezone
 from fastapi import APIRouter,HTTPException
 from google.cloud import bigquery
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
@@ -82,22 +81,8 @@ def get_invoice(invoice_id: str):
 
         pdf_name = f"{invoice_id}.pdf"
         blob_path = f"{PDF_BASE_PATH}/{pdf_name}"
-        print("working1")
         url=pdf_extractor.get_invoice_pdfs(invoice_id)
-        print("working2")
-        #update the status
-        if data[0]["header_fields"]["status"].lower() !="processed":
-            update_sql=f"""
-            UPDATE {TABLE_FQN}
-            SET status= 'Review in Progress'
-            WHERE invoice_id=@invoice_id
-            """
-            
-            job1=client.query(update_sql,job_config=job_config,location="us-central1").result()
-            if job1.num_dml_affected_rows==0:
-                raise HTTPException(status_code=404,detail=f"No invoice found with id {str(invoice_id)}")
-        print("working3")
-        #return the details
+        
         return {"invoice_id":invoice_id,"original_document_url":url[0],"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
@@ -166,24 +151,26 @@ def update_invoice(payload:fetch_invoice.Update_invoice):
     except HTTPException as e:
         raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
 
-@invoice_router.put("/cancel_update",response_model=str)
-def cancel_update(payload:schemas.Cancel_invoice):
+
+@invoice_router.put("/cancel_update/{invoice_id}",response_model=str)
+def cancel_update(invoice_id:str):
     try:
-        if payload.status.lower()=="processed":
-            return "updation changes are cancelled"
+
         sql=f"""
         UPDATE {TABLE_FQN}
-        SET status=@status
+        SET status=@status,
+            reviewed_by=@reviewed_by
         WHERE invoice_id=@invoice_id
         """
         params=[
-            bigquery.ScalarQueryParameter("invoice_id","STRING",payload.invoice_id),
-            bigquery.ScalarQueryParameter("status","STRING",payload.status)
+            bigquery.ScalarQueryParameter("invoice_id","STRING",invoice_id),
+            bigquery.ScalarQueryParameter("reviewed_by","STRING",""),
+            bigquery.ScalarQueryParameter("status","STRING","Pending Review")
         ]
         job_config=bigquery.QueryJobConfig(query_parameters=params)
         job=client.query(sql,job_config=job_config,location="us-central1").result()
         if job.num_dml_affected_rows==0:
-            raise HTTPException(status_code=404,detail=f"invoice id {str(payload.invoice_id)} not found")
+            raise HTTPException(status_code=404,detail=f"invoice id {str(invoice_id)} not found")
         else:
             return "updation changes are cancelled"
     except Forbidden as e:
@@ -194,6 +181,28 @@ def cancel_update(payload:schemas.Cancel_invoice):
         raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e 
     
 
+@invoice_router.put("/update_status")
+def update_invoice_status(payload:schemas.Update_status):
+    try:
+        payload_json=payload.model_dump(mode="python")
+        sql=f"""
+            UPDATE {TABLE_FQN}
+            SET status='Review in progress',
+                reviewed_by='{payload_json["reviewed_by"]}'
+            WHERE invoice_id='{payload_json["invoice_id"]}'
+        """
+        job=client.query(sql).result()
+        if job.num_dml_affected_rows==0:
+            raise HTTPException(status_code=404,detail=f"invoice id {payload_json["invoice_id"]} not found")
+        else:
+            return {"status":"Review in Progress","reviewed_by":payload_json["reviewed_by"]}
+        
+    except Forbidden as e:
+        raise HTTPException(status_code=403,detail="Access denied") from e
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e 
 
 @invoice_router.post("/revalidate-invoice/{invoice_id}")
 def revalidate_invoice(invoice_id: str):

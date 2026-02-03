@@ -10,7 +10,7 @@ from dashboard import dashboard_main,dashboard2
 from users import user_main
 load_dotenv()
 
-app=FastAPI()
+app=FastAPI(title="DDT API")
 
 
 app.include_router(waybill_main.waybill_router)

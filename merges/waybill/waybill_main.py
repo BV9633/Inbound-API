@@ -5,7 +5,7 @@ from fastapi import HTTPException,APIRouter
 from google.cloud import bigquery
 from google.api_core.exceptions import GoogleAPICallError,NotFound,Forbidden
 from dotenv import load_dotenv
-from  waybill.waybill_schemas import all_waybills_schema,fetch_waybill_schema,cancel_schema
+from  waybill.waybill_schemas import all_waybills_schema,fetch_waybill_schema,cancel_schema,update_status_schema
 from waybill import fetch_waybill,pdf_extractor,timestamp,update_waybill
 import age_calculator
 
@@ -93,19 +93,7 @@ def search_waybill(waybill_id:str):
             url=url[0]
         else:
             url=None
-        #update the status
-        if data[0]["header_fields"]["status"].lower() !="processed" and data[0]["header_fields"]["status"].lower() !="extraction successful":
-            update_sql=f"""
-            UPDATE {TABLE_FQN}
-            SET status= 'Review in Progress'
-            WHERE waybill_id=@waybill_id
-            """
-            
-            job1=client.query(update_sql,job_config=job_config,location="us-central1").result()
-            if job1.num_dml_affected_rows==0:
-                raise HTTPException(status_code=404,detail=f"No waybill found with id {str(waybill_id)}")
-
-        #return the details
+        
         return {"waybill_id":waybill_id,"original_document_url":url,"evaluation_data":data[0]}
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
@@ -117,24 +105,48 @@ def search_waybill(waybill_id:str):
         raise HTTPException(status_code=500,detail=f"Unexpected error {str(e)}") from e
 
 
-@waybill_router.put("/cancel_update",response_model=str)
-def cancel_update(payload:cancel_schema.Cancel_waybill):
+@waybill_router.put("/update_status")
+def update_waybill_status(payload:update_status_schema.Update_status):
     try:
-        if payload.status.lower()=="processed":
-            return "updation changes are cancelled"
+        payload_json=payload.model_dump(mode="python")
+        sql=f"""
+            UPDATE {TABLE_FQN}
+            SET status='Review in progress',
+                reviewed_by='{payload_json["reviewed_by"]}'
+            WHERE waybill_id='{payload_json["waybill_id"]}'
+        """
+        job=client.query(sql).result()
+        if job.num_dml_affected_rows==0:
+            raise HTTPException(status_code=404,detail=f"waybill id {payload_json["waybill_id"]} not found")
+        else:
+            return {"status":"Review in Progress","reviewed_by":payload_json["reviewed_by"]}
+        
+    except Forbidden as e:
+        raise HTTPException(status_code=403,detail="Access denied") from e
+    except GoogleAPICallError as e:
+        raise HTTPException(status_code=502,detail=f"BigQuery API error {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Internal Server error {str(e)}") from e 
+
+
+@waybill_router.put("/cancel_update/{waybill_id}",response_model=str)
+def cancel_update(waybill_id:str):
+    try:
         sql=f"""
         UPDATE {TABLE_FQN}
-        SET status=@status
+        SET status=@status,
+            reviewed_by=@reviewed_by
         WHERE waybill_id=@waybill_id
         """
         params=[
-            bigquery.ScalarQueryParameter("waybill_id","STRING",payload.waybill_id),
-            bigquery.ScalarQueryParameter("status","STRING",payload.status)
+            bigquery.ScalarQueryParameter("waybill_id","STRING",waybill_id),
+            bigquery.ScalarQueryParameter("reviewed_by","STRING",""),
+            bigquery.ScalarQueryParameter("status","STRING","Pending Review")
         ]
         job_config=bigquery.QueryJobConfig(query_parameters=params)
         job=client.query(sql,job_config=job_config,location="us-central1").result()
         if job.num_dml_affected_rows==0:
-            raise HTTPException(status_code=404,detail=f"waybill id {str(payload.waybill_id)} not found")
+            raise HTTPException(status_code=404,detail=f"waybill id {str(waybill_id)} not found")
         else:
             return "updation changes are cancelled"
     except Forbidden as e:

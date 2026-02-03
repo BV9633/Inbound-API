@@ -1,6 +1,16 @@
 from google.cloud import bigquery
 import json
+import os
+from dotenv import load_dotenv
 from typing import Dict, List, Any, Optional
+
+load_dotenv()
+
+PROJECT_ID = os.getenv("PROJECT_ID")
+DATASET = os.getenv("DATASET")
+TABLE = os.getenv("WAYBILL_TABLE_NAME")
+TABLE_FQN = f"{PROJECT_ID}.{DATASET}.{TABLE}"
+
 class PayloadTransformer:
     """Transform frontend payload to BigQuery update format"""
     def __init__(self):
@@ -78,7 +88,7 @@ class PayloadTransformer:
                     transformed_item[field_name] = field_data
             transformed_items.append(transformed_item)
         return transformed_items
-class CommercialwaybillUpdater:
+class WaybillUpdater:
     """Class to handle dynamic updates to commercial waybill table in BigQuery"""
     # Define all scalar fields (non-nested fields)
     SCALAR_FIELDS = [
@@ -191,13 +201,10 @@ class CommercialwaybillUpdater:
        'chargable_weight_uom_y2_coordinate', 'chargable_weight_uom_x3_coordinate', 'chargable_weight_uom_y3_coordinate',
        'chargable_weight_uom_x4_coordinate', 'chargable_weight_uom_y4_coordinate'
     ]
-    def __init__(self, project_id: str, dataset_id: str, table_id: str):
+    def __init__(self, table_str:str):
         """Initialize the updater with table information"""
-        self.client = bigquery.Client(project=project_id)
-        self.project_id = project_id
-        self.dataset_id = dataset_id
-        self.table_id = table_id
-        self.full_table_id = f"`{project_id}.{dataset_id}.{table_id}`"
+  
+        self.full_table_id = table_str
     def update_waybill(self, json_data: Dict[str, Any]) -> bool:
 
         # Parse JSON if string
@@ -302,94 +309,135 @@ class CommercialwaybillUpdater:
             "container_number_y1_coordinate" :"FLOAT64",
             "container_number_x2_coordinate" :"FLOAT64",
             "container_number_y2_coordinate" :"FLOAT64",
-                                        "container_number_x3_coordinate" :"FLOAT64",
-                                        "container_number_y3_coordinate" :"FLOAT64",
-                                        "container_number_x4_coordinate" :"FLOAT64",
-                                        "container_number_y4_coordinate" :"FLOAT64",
+            "container_number_x3_coordinate" :"FLOAT64",
+            "container_number_y3_coordinate" :"FLOAT64",
+            "container_number_x4_coordinate" :"FLOAT64",
+            "container_number_y4_coordinate" :"FLOAT64",
 
-                                        "seal_number": "STRING",
-                                        "seal_number_confidence_score" :"FLOAT64",
-                                        "seal_number_page_number" :"INT64",
-                                        "seal_number_x1_coordinate" :"FLOAT64",
-                                        "seal_number_y1_coordinate" :"FLOAT64",
-                                        "seal_number_x2_coordinate" :"FLOAT64",
-                                        "seal_number_y2_coordinate" :"FLOAT64",
-                                        "seal_number_x3_coordinate" :"FLOAT64",
-                                        "seal_number_y3_coordinate" :"FLOAT64",
-                                        "seal_number_x4_coordinate" :"FLOAT64",
-                                        "seal_number_y4_coordinate" :"FLOAT64",
+            "seal_number": "STRING",
+            "seal_number_confidence_score" :"FLOAT64",
+            "seal_number_page_number" :"INT64",
+            "seal_number_x1_coordinate" :"FLOAT64",
+            "seal_number_y1_coordinate" :"FLOAT64",
+            "seal_number_x2_coordinate" :"FLOAT64",
+            "seal_number_y2_coordinate" :"FLOAT64",
+            "seal_number_x3_coordinate" :"FLOAT64",
+            "seal_number_y3_coordinate" :"FLOAT64",
+            "seal_number_x4_coordinate" :"FLOAT64",
+            "seal_number_y4_coordinate" :"FLOAT64",
 
-                                        "PO_number": "STRING",
-                                        "PO_number_confidence_score" :"FLOAT64",
-                                        "PO_number_page_number": "INT64",
-                                        "PO_number_x1_coordinate" :"FLOAT64",
-                                        "PO_number_y1_coordinate" :"FLOAT64",
-                                        "PO_number_x2_coordinate" :"FLOAT64",
-                                        "PO_number_y2_coordinate" :"FLOAT64",
-                                        "PO_number_x3_coordinate" :"FLOAT64",
-                                        "PO_number_y3_coordinate" :"FLOAT64",
-                                        "PO_number_x4_coordinate" :"FLOAT64",
-                                        "PO_number_y4_coordinate" :"FLOAT64",
+            "PO_number": "STRING",
+            "PO_number_confidence_score" :"FLOAT64",
+            "PO_number_page_number": "INT64",
+            "PO_number_x1_coordinate" :"FLOAT64",
+            "PO_number_y1_coordinate" :"FLOAT64",
+            "PO_number_x2_coordinate" :"FLOAT64",
+            "PO_number_y2_coordinate" :"FLOAT64",
+            "PO_number_x3_coordinate" :"FLOAT64",
+            "PO_number_y3_coordinate" :"FLOAT64",
+            "PO_number_x4_coordinate" :"FLOAT64",
+            "PO_number_y4_coordinate" :"FLOAT64",
 
-                                        "mnfst_qty": "STRING",
-                                        "mnfst_qty_confidence_score" :"FLOAT64",
-                                        "mnfst_qty_page_number": "INT64",
-                                        "mnfst_qty_x1_coordinate" :"FLOAT64",
-                                        "mnfst_qty_y1_coordinate" :"FLOAT64",
-                                        "mnfst_qty_x2_coordinate" :"FLOAT64",
-                                        "mnfst_qty_y2_coordinate" :"FLOAT64",
-                                        "mnfst_qty_x3_coordinate" :"FLOAT64",
-                                        "mnfst_qty_y3_coordinate" :"FLOAT64",
-                                        "mnfst_qty_x4_coordinate" :"FLOAT64",
-                                        "mnfst_qty_y4_coordinate" :"FLOAT64",
+            "mnfst_qty": "STRING",
+            "mnfst_qty_confidence_score" :"FLOAT64",
+            "mnfst_qty_page_number": "INT64",
+            "mnfst_qty_x1_coordinate" :"FLOAT64",
+            "mnfst_qty_y1_coordinate" :"FLOAT64",
+            "mnfst_qty_x2_coordinate" :"FLOAT64",
+            "mnfst_qty_y2_coordinate" :"FLOAT64",
+            "mnfst_qty_x3_coordinate" :"FLOAT64",
+            "mnfst_qty_y3_coordinate" :"FLOAT64",
+            "mnfst_qty_x4_coordinate" :"FLOAT64",
+            "mnfst_qty_y4_coordinate" :"FLOAT64",
 
-                                        "SLAC" :"STRING",
-                                        "SLAC_confidence_score" :"FLOAT64",
-                                        "SLAC_page_number": "INT64",
-                                        "SLAC_x1_coordinate" :"FLOAT64",
-                                        "SLAC_y1_coordinate" :"FLOAT64",
-                                        "SLAC_x2_coordinate" :"FLOAT64",
-                                        "SLAC_y2_coordinate" :"FLOAT64",
-                                        "SLAC_x3_coordinate" :"FLOAT64",
-                                        "SLAC_y3_coordinate" :"FLOAT64",
-                                        "SLAC_x4_coordinate" :"FLOAT64",
-                                        "SLAC_y4_coordinate" :"FLOAT64",
+            "mnfst_qty_uom": "STRING",
+            "mnfst_qty_uom_confidence_score" :"FLOAT64",
+            "mnfst_qty_uom_page_number": "INT64",
+            "mnfst_qty_uom_x1_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_y1_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_x2_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_y2_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_x3_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_y3_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_x4_coordinate" :"FLOAT64",
+            "mnfst_qty_uom_y4_coordinate" :"FLOAT64",
 
-                                        "gross_weight": "STRING",
-                                        "gross_weight_confidence_score" :"FLOAT64",
-                                        "gross_weight_page_number": "INT64",
-                                        "gross_weight_x1_coordinate" :"FLOAT64",
-                                        "gross_weight_y1_coordinate" :"FLOAT64",
-                                        "gross_weight_x2_coordinate" :"FLOAT64",
-                                        "gross_weight_y2_coordinate" :"FLOAT64",
-                                        "gross_weight_x3_coordinate" :"FLOAT64",
-                                        "gross_weight_y3_coordinate" :"FLOAT64",
-                                        "gross_weight_x4_coordinate" :"FLOAT64",
-                                        "gross_weight_y4_coordinate" :"FLOAT64",
+            "SLAC" :"STRING",
+            "SLAC_confidence_score" :"FLOAT64",
+            "SLAC_page_number": "INT64",
+            "SLAC_x1_coordinate" :"FLOAT64",
+            "SLAC_y1_coordinate" :"FLOAT64",
+            "SLAC_x2_coordinate" :"FLOAT64",
+            "SLAC_y2_coordinate" :"FLOAT64",
+            "SLAC_x3_coordinate" :"FLOAT64",
+            "SLAC_y3_coordinate" :"FLOAT64",
+            "SLAC_x4_coordinate" :"FLOAT64",
+            "SLAC_y4_coordinate" :"FLOAT64",
 
-                                        "chargable_weight": "STRING",
-                                        "chargable_weight_confidence_score" :"FLOAT64",
-                                        "chargable_weight_page_number":"INT64",
-                                        "chargable_weight_x1_coordinate" :"FLOAT64",
-                                        "chargable_weight_y1_coordinate" :"FLOAT64",
-                                        "chargable_weight_x2_coordinate" :"FLOAT64",
-                                        "chargable_weight_y2_coordinate" :"FLOAT64",
-                                        "chargable_weight_x3_coordinate" :"FLOAT64",
-                                        "chargable_weight_y3_coordinate" :"FLOAT64",
-                                        "chargable_weight_x4_coordinate" :"FLOAT64",
-                                        "chargable_weight_y4_coordinate" :"FLOAT64",
+            "SLAC_uom": "STRING",
+            "SLAC_uom_confidence_score" :"FLOAT64",
+            "SLAC_uom_page_number":"INT64",
+            "SLAC_uom_x1_coordinate" :"FLOAT64",
+            "SLAC_uom_y1_coordinate" :"FLOAT64",
+            "SLAC_uom_x2_coordinate" :"FLOAT64",
+            "SLAC_uom_y2_coordinate" :"FLOAT64",
+            "SLAC_uom_x3_coordinate" :"FLOAT64",
+            "SLAC_uom_y3_coordinate" :"FLOAT64",
+            "SLAC_uom_x4_coordinate" :"FLOAT64",
+            "SLAC_uom_y4_coordinate" :"FLOAT64",
 
-                                        "volume": "STRING",
-                                        "volume_confidence_score" :"FLOAT64",
-                                        "volume_page_number": "INT64",
-                                        "volume_x1_coordinate" :"FLOAT64",
-                                        "volume_y1_coordinate" :"FLOAT64",
-                                        "volume_x2_coordinate" :"FLOAT64",
-                                        "volume_y2_coordinate" :"FLOAT64",
-                                        "volume_x3_coordinate" :"FLOAT64",
-                                        "volume_y3_coordinate" :"FLOAT64",
-                                        "volume_x4_coordinate" :"FLOAT64",
-                                        "volume_y4_coordinate" :"FLOAT64"
+
+
+            "gross_weight": "STRING",
+            "gross_weight_confidence_score" :"FLOAT64",
+            "gross_weight_page_number": "INT64",
+            "gross_weight_x1_coordinate" :"FLOAT64",
+            "gross_weight_y1_coordinate" :"FLOAT64",
+            "gross_weight_x2_coordinate" :"FLOAT64",
+            "gross_weight_y2_coordinate" :"FLOAT64",
+            "gross_weight_x3_coordinate" :"FLOAT64",
+            "gross_weight_y3_coordinate" :"FLOAT64",
+            "gross_weight_x4_coordinate" :"FLOAT64",
+            "gross_weight_y4_coordinate" :"FLOAT64",
+
+            "gross_weight_uom": "STRING",
+            "gross_weight_uom_confidence_score": "FLOAT64",
+            "gross_weight_uom_page_number": "INT64",
+            "gross_weight_uom_x1_coordinate": "FLOAT64",
+            "gross_weight_uom_y1_coordinate": "FLOAT64",
+            "gross_weight_uom_x2_coordinate": "FLOAT64",
+            "gross_weight_uom_y2_coordinate": "FLOAT64",
+            "gross_weight_uom_x3_coordinate": "FLOAT64",
+            "gross_weight_uom_y3_coordinate": "FLOAT64",
+            "gross_weight_uom_x4_coordinate": "FLOAT64",
+            "gross_weight_uom_y4_coordinate": "FLOAT64",
+
+
+            "chargable_weight": "STRING",
+            "chargable_weight_confidence_score" :"FLOAT64",
+            "chargable_weight_page_number":"INT64",
+            "chargable_weight_x1_coordinate" :"FLOAT64",
+            "chargable_weight_y1_coordinate" :"FLOAT64",
+            "chargable_weight_x2_coordinate" :"FLOAT64",
+            "chargable_weight_y2_coordinate" :"FLOAT64",
+            "chargable_weight_x3_coordinate" :"FLOAT64",
+            "chargable_weight_y3_coordinate" :"FLOAT64",
+            "chargable_weight_x4_coordinate" :"FLOAT64",
+            "chargable_weight_y4_coordinate" :"FLOAT64",
+
+                                        "chargable_weight_uom": "STRING",
+                                        "chargable_weight_uom_confidence_score": "FLOAT64",
+                                        "chargable_weight_uom_page_number": "INT64",
+                                        "chargable_weight_uom_x1_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_y1_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_x2_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_y2_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_x3_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_y3_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_x4_coordinate": "FLOAT64",
+                                        "chargable_weight_uom_y4_coordinate": "FLOAT64",
+
+                                       
         }
         type_defs = [f"{field} {type_map[field]}" for field in self.LINE_ITEM_FIELDS]
         return ', '.join(type_defs)
@@ -428,10 +476,7 @@ def process_frontend_payload(frontend_payload_json: str):
     """
     # Initialize transformer and updater
     transformer = PayloadTransformer()
-    project_id = "its-compute-sc-rmapchat-d"
-    dataset_id = "its_sc_rmapchat_bq_ddtransfm_us_sfdc_d"
-    table_id = "table_waybill"
-    updater = CommercialwaybillUpdater(project_id, dataset_id, table_id)
+    updater = WaybillUpdater(TABLE_FQN)
     # Parse frontend payload
     if isinstance(frontend_payload_json, str):
         frontend_payload = json.loads(frontend_payload_json)

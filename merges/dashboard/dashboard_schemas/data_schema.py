@@ -24,3 +24,4 @@ class Processed_documents(BaseModel):
     cbp_manual:int
     total_auto:int
     total_manual:int
+    timeline:str
