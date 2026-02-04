@@ -83,11 +83,12 @@ def add_new_user(payload:add_user_schema.Add_new_user):
         if len(data)>0:
             raise HTTPException(status_code=409,
                                 detail=f"User already exists with user_core_id {str(payload_json['user_core_id'])}")
-
-        rows_to_insert=[payload_json]
-        errors=client.insert_rows_json(TABLE_FQN,rows_to_insert)
-        if errors:
-            raise HTTPException(status_code=400,detail=f"Bigquery API error {str(errors)}")
+        rows=[payload_json]
+        table_ref = client.dataset(DATASET).table(TABLE)
+        load_job = client.load_table_from_json(rows, table_ref)
+        load_job.result()
+        if load_job.errors:
+            raise HTTPException(status_code=400,detail=f"Bigquery API error {str(load_job.errors)}")
         return "Added new user sucessfully"        
     except NotFound:
         raise HTTPException(status_code=404,detail="Table not found")
