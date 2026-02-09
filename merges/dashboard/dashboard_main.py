@@ -203,7 +203,7 @@ def get_recent_documents():
 @dashboard_router.get("/all_processed_documents/{filter}",response_model=data_schema.All_processed_documents)
 def get_all_processed_documents(filter:str):
     try:
-        if filter.lower() not in ["daily","weekly","monthly","quartertly"]:
+        if filter.lower() not in ["daily","weekly","monthly","quarterly"]:
             raise HTTPException(status_code=422,detail="Invalid input filter")
         sql=""
         data_string=f"""
@@ -398,7 +398,7 @@ def get_all_processed_documents(filter:str):
 @dashboard_router.get("/processed_documents/{filter}",response_model=data_schema.Processed_documents)
 def get_processed_documents(filter:str):
     try:
-        if filter.lower() not in ["daily","weekly","monthly","quartertly"]:
+        if filter.lower() not in ["daily","weekly","monthly","quarterly"]:
             raise HTTPException(status_code=422,detail="Invalid input filter")
         # Setting days to 1 ensures the "age < 1" logic captures only today's data
         days = 1 

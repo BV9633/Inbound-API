@@ -187,7 +187,7 @@ def update_invoice_status(payload:schemas.Update_status):
         payload_json=payload.model_dump(mode="python")
         sql=f"""
             UPDATE {TABLE_FQN}
-            SET status='Review in progress',
+            SET status='Review in Progress',
                 reviewed_by='{payload_json["reviewed_by"]}'
             WHERE invoice_id='{payload_json["invoice_id"]}'
         """

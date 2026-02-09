@@ -118,7 +118,7 @@ def global_search(SearchNumber: str):
              
             invoice_id AS unique_id,
             invoice_number AS document_number,
-            "Commercial Invoice" AS document_type,
+            "Invoice" AS document_type,
             HAWB_number,
             MAWB_number,
             original_creation_date,
@@ -188,7 +188,6 @@ def global_search(SearchNumber: str):
         job = client.query(sql, job_config=job_config,location="us-central1")
         rows = [dict(r) for r in job.result()]
         if not rows:
-            # Requirement: return exception if no data
             raise HTTPException(status_code=404, detail=f"No documents found for number: {SearchNumber}")
         return rows
 

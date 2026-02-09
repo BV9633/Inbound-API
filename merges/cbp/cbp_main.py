@@ -134,7 +134,7 @@ def update_cbp_status(payload:update_status_schema.Update_status):
         payload_json=payload.model_dump(mode="python")
         sql=f"""
             UPDATE {TABLE_FQN}
-            SET status='Review in progress',
+            SET status='Review in Progress',
                 reviewed_by='{payload_json["reviewed_by"]}'
             WHERE cbp_id='{payload_json["cbp_id"]}'
         """
