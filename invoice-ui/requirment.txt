@@ -1,5 +1,10 @@
-streamlit
-uvicorn
 fastapi
+uvicorn
+streamlit
 google-genai
 pandas
+pydantic
+tenacity
+python-dotenv
+requests
+python-multipart
