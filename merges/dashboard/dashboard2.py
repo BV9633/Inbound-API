@@ -26,7 +26,7 @@ RECENT_DOCUMENTS_AGE=os.getenv("RECENT_DOCUMENTS_AGE")
 
 client=bigquery.Client(project=PROJECT_ID)
 
-dashboard_router=APIRouter(prefix="/dashboard",tags=["dashboad"])
+dashboard_router=APIRouter(prefix="/dashboard",tags=["dashboard"])
 def get_header_fields(doc:str):
     header_item_fields=[]
     line_item_fields=[]

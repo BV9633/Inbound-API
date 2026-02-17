@@ -8,6 +8,7 @@ from cbp import cbp_main
 from invoice import invoice_main
 from dashboard import dashboard_main,dashboard2
 from users import user_main
+from exceptional import exceptional_main
 load_dotenv()
 
 app=FastAPI(title="DDT API")
@@ -19,7 +20,7 @@ app.include_router(invoice_main.invoice_router)
 app.include_router(dashboard_main.dashboard_router)
 app.include_router(dashboard2.dashboard_router)
 app.include_router(user_main.user_router)
-
+app.include_router(exceptional_main.exceptions_router)
 CORS_ORIGINS = os.getenv("CORS_ORIGIN")
 
 app.add_middleware(

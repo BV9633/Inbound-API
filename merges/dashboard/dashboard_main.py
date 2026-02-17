@@ -25,7 +25,7 @@ RECENT_DOCUMENTS_AGE=os.getenv("RECENT_DOCUMENTS_AGE")
 
 client=bigquery.Client(project=PROJECT_ID)
 
-dashboard_router=APIRouter(prefix="/dashboard",tags=["dashboad"])
+dashboard_router=APIRouter(prefix="/dashboard",tags=["dashboard"])
 
 
 
@@ -438,12 +438,20 @@ def get_processed_documents(filter:str):
                 SELECT 
                     COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS invoice_auto,
                     COUNTIF(source = 'Invoice' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS invoice_manual,
+                    COUNTIF(source = 'Invoice' AND LOWER(status) = 'pending review' ) AS invoice_pending_review,
+                    COUNTIF(source = 'Invoice' AND LOWER(status) = 'review in progress') AS invoice_review_in_progress,
                     COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS waybill_auto,
+                    COUNTIF(source = 'Waybill' AND LOWER(status) = 'pending review' ) AS waybill_pending_review,
+                    COUNTIF(source = 'Waybill' AND LOWER(status) = 'review in progress') AS waybill_review_in_progress,
                     COUNTIF(source = 'Waybill' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS waybill_manual,
                     COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence >= 90) AS cbp_auto,
                     COUNTIF(source = 'CBP' AND LOWER(status) = 'processed' AND minimum_confidence < 90) AS cbp_manual,
+                    COUNTIF(source = 'CBP' AND LOWER(status) = 'pending review' ) AS cbp_pending_review,
+                    COUNTIF(source = 'CBP' AND LOWER(status) = 'review in progress') AS cbp_review_in_progress,                
                     COUNTIF(LOWER(status) = 'processed' AND minimum_confidence >= 90) AS total_auto,
                     COUNTIF(LOWER(status) = 'processed' AND minimum_confidence < 90) AS total_manual,
+                    COUNTIF(LOWER(status) = 'pending review' ) AS total_pending_review,
+                    COUNTIF(LOWER(status) = 'review in progress') AS total_review_in_progress,                    
                     CONCAT(FORMAT_DATE('%d %b %Y',DATE_SUB(CURRENT_DATE('America/Chicago'),INTERVAL {days} DAY)),
                             ' to ',
                             FORMAT_DATE('%d %b %Y',CURRENT_DATE('America/Chicago'))) as timeline
