@@ -187,8 +187,6 @@ def global_search(SearchNumber: str):
     try:
         job = client.query(sql, job_config=job_config,location="us-central1")
         rows = [dict(r) for r in job.result()]
-        if not rows:
-            raise HTTPException(status_code=404, detail=f"No documents found for number: {SearchNumber}")
         return rows
 
     except NotFound:

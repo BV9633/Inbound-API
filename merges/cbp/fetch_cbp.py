@@ -457,7 +457,11 @@ fields="""
       last_updated_date AS last_updated_date,
       reason_or_remarks AS reason_or_remarks,
       minimum_confidence AS minimum_confidence,
-      status AS status
+      status AS status,
+      DATE_DIFF(
+        CURRENT_DATE('America/Chicago'),
+        EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
+        REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')), DAY) as age
     ) AS header_fields,
 
     """

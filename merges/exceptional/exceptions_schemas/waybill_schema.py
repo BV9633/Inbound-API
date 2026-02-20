@@ -34,13 +34,7 @@ class Waybill(BaseModel):
     volume:str|None
     volume_uom:str|None
     line_items:List[WaybillLineItems]
-    reviewed_by:str
-    review_date:str
     created_by:str
-    last_updated_date:str
-    original_creation_date:str
     reason_or_remarks:str
-    minimum_confidence:float
-    status:str
 
 

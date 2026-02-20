@@ -39,6 +39,7 @@ class Header_fields(BaseModel):
     reason_or_remarks:str | None
     minimum_confidence:float | None
     status:str | None
+    age:int
 
 class Line_items_header_fields(BaseModel):
     container_number:Item

@@ -10,7 +10,8 @@ PROJECT_ID=os.getenv("PROJECT_ID")
 GCS_BUCKET=os.getenv("BUCKET_NAME")
 EXCEPTION_FOLDER=os.getenv("EXCEPTION_FOLDER")
 INVOICE_FOLDER=os.getenv("INVOICE_FOLDER")
-WAYBILL_FOLDER=os.getenv("WAYBILL_FOLDER")
+SEA_WAYBILL_FOLDER=os.getenv("SEA_WAYBILL_FOLDER")
+AIR_WAYBILL_FOLDER=os.getenv("AIR_WAYBILL_FOLDER")
 CBP_FOLDER=os.getenv("CBP_FOLDER")
 client = storage.Client(project=PROJECT_ID)
 bucket=client.bucket(GCS_BUCKET)
@@ -23,7 +24,8 @@ def file_tranfer(doc_id:str,doc_type:str):
     
         doc_names={
             'invoice':f'{INVOICE_FOLDER}/{doc_id}_commercial_invoice.pdf',
-            'waybill':f'{WAYBILL_FOLDER}/{doc_id}_waybill.pdf',
+            'sea':f'{SEA_WAYBILL_FOLDER}/{doc_id}_sea_waybill.pdf',
+            'air':f'{AIR_WAYBILL_FOLDER}/{doc_id}_air_waybill.pdf',
             'cbp':f'{CBP_FOLDER}/{doc_id}_CBP_7512.pdf'
         }
     

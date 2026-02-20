@@ -149,7 +149,11 @@ fields="""
         ) AS currency,
 
         reviewed_by,review_date,created_by,original_creation_date,last_updated_date,
-        reason_or_remarks,minimum_confidence,status
+        reason_or_remarks,minimum_confidence,status,
+        DATE_DIFF(
+        CURRENT_DATE('America/Chicago'),
+        EXTRACT(DATE FROM PARSE_TIMESTAMP('%d-%b-%Y %H:%M:%S', 
+        REPLACE(original_creation_date, ' CST', ''), 'America/Chicago')), DAY) as age
     ) AS header_fields,
     ARRAY(
             SELECT STRUCT(
@@ -303,6 +307,7 @@ class Header_fields(BaseModel):
     reason_or_remarks:Optional[str]=Field(default=None)
     minimum_confidence:Optional[float]=Field(default=None)
     status:Optional[str]=Field(default=None)
+    age:int
 
 class Line_items_header_fields(BaseModel):
     part_number:Item

@@ -56,6 +56,7 @@ class Header_fields(BaseModel):
     reason_or_remarks:str | None
     minimum_confidence:float | None
     status:str | None
+    age:int
 
 
 class Evaluation_data(BaseModel):
