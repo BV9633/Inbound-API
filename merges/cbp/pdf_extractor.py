@@ -7,13 +7,21 @@ load_dotenv()
 
 PROJECT_ID=os.getenv("PROJECT_ID")
 GCS_BUCKET=os.getenv("BUCKET_NAME")
+CBP_FOLDER=os.getenv("CBP_FOLDER")
 client = storage.Client(project=PROJECT_ID)
+bucket = client.bucket(GCS_BUCKET)
 
 
 
 def get_cbp_pdfs(cbp_id: str):
-    bucket = client.bucket(GCS_BUCKET)
+    blob=bucket.blob(f"{CBP_FOLDER}/{cbp_id}_CBP_7512.pdf")
+    if blob.exists():
+        return [f"https://storage.cloud.google.com/{GCS_BUCKET}/{blob.name}"]
+    else:
+        return [None]
 
+
+"""
     GCS_PREFIX = (
             "DarkDataTransformation/DocumentAI/"
             "Classifier_Output/CBP_7512/"
@@ -35,3 +43,4 @@ def get_cbp_pdfs(cbp_id: str):
             pdf_urls.append(url)
     print(pdf_urls)
     return pdf_urls
+"""

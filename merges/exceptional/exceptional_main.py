@@ -43,7 +43,12 @@ def get_exception_documents():
                 t1.file_id AS unique_id,
                 t2.sender_or_from AS sender,
                 t2.subject,
-                t1.mail_timestamp AS date_received,
+                CASE 
+                    WHEN SAFE.PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', t1.mail_timestamp) IS NOT NULL 
+                    THEN FORMAT_DATE('%d-%b-%Y %H:%M:%S',PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S',t1.mail_timestamp))
+                    ELSE t1.mail_timestamp 
+                    END
+                as date_received,
                 CASE 
                     WHEN SAFE.PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', t1.mail_timestamp) IS NOT NULL 
                     THEN DATE_DIFF(
@@ -254,7 +259,12 @@ def get_document_url(file_id:str):
                 STRUCT(
                 t2.sender_or_from AS sender,
                 t2.subject,
-                t1.mail_timestamp AS date_received,
+                CASE 
+                    WHEN SAFE.PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', t1.mail_timestamp) IS NOT NULL 
+                    THEN FORMAT_DATE('%d-%b-%Y %H:%M:%S',PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S',t1.mail_timestamp))
+                    ELSE t1.mail_timestamp 
+                    END
+                as date_received,
                 CASE 
                     WHEN SAFE.PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', t1.mail_timestamp) IS NOT NULL 
                     THEN DATE_DIFF(
