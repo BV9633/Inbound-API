@@ -1,9 +1,3 @@
-"""
-Hybrid openpyxl + pandas becuase:
-- openpyxl: reads header section with exact cell refs, handles merged cells, skips hidden rows/cols
-- pandas: reads line items table (tabular data, efficient row parsing)
-"""
-
 import os
 import io
 import math
