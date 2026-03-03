@@ -7,464 +7,371 @@ import pandas as pd
 import requests
 import streamlit as st
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Configuration
 API_BASE_URL = "http://localhost:8000"
 API_TIMEOUT_SECONDS = 300
 SUPPORTED_FILE_TYPES = ["xlsx", "xls"]
 
+# Canonical fields in display order
+CANONICAL_FIELDS = [
+    "supplier_name", "supplier_location", "invoice_number", "invoice_date",
+    "currency", "Incoterm", "commercial_invoice_value", "HAWB_number", "MAWB_number"
+]
+
 
 class APIClient:
-    """Client for communicating with the Invoice Extraction API."""
-    
     def __init__(self, base_url: str = API_BASE_URL):
         self.base_url = base_url
-    
+
     def health_check(self) -> bool:
-        """Check if the backend API is available."""
         try:
             response = requests.get(f"{self.base_url}/health", timeout=5)
             return response.status_code == 200
-        except requests.RequestException as e:
-            logger.warning(f"API health check failed: {e}")
+        except requests.RequestException:
             return False
-    
+
     def extract_invoice(self, file_name: str, file_content: bytes) -> Dict[str, Any]:
-        """Send single file to API for invoice extraction."""
-        files = {
-            "file": (
-                file_name,
-                file_content,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        }
-        
-        response = requests.post(
-            f"{self.base_url}/extract",
-            files=files,
-            timeout=API_TIMEOUT_SECONDS
-        )
-        
+        files = {"file": (file_name, file_content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        response = requests.post(f"{self.base_url}/extract", files=files, timeout=API_TIMEOUT_SECONDS)
         if response.status_code != 200:
             raise Exception(f"API Error: {response.text}")
-        
         return response.json()
-    
+
     def extract_with_streaming(self, file_name: str, file_content: bytes, status_callback):
-        """Extract with streaming status updates."""
-        files = {
-            "file": (
-                file_name,
-                file_content,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        }
-        
-        try:
-            response = requests.post(
-                f"{self.base_url}/extract-stream",
-                files=files,
-                stream=True,
-                timeout=API_TIMEOUT_SECONDS
-            )
-            
-            if response.status_code != 200:
-                raise Exception(f"API Error: {response.text}")
-            
-            final_result = None
-            
-            for line in response.iter_lines():
-                if line:
-                    line_str = line.decode('utf-8')
-                    if line_str.startswith('data: '):
-                        data = json.loads(line_str[6:])
-                        
-                        if data.get('type') == 'complete':
-                            final_result = data.get('data')
-                        else:
-                            status_callback(data)
-            
-            return final_result
-            
-        except requests.exceptions.ChunkedEncodingError:
-            raise Exception("Connection interrupted during streaming")
-    
-    def batch_extract(self, files_data: List[tuple]) -> Dict[str, Any]:
-        """Send multiple files to API for batch extraction."""
-        files = [
-            ("files", (name, content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-            for name, content in files_data
-        ]
-        
+        files = {"file": (file_name, file_content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
         response = requests.post(
-            f"{self.base_url}/batch-extract",
-            files=files,
-            timeout=API_TIMEOUT_SECONDS
+            f"{self.base_url}/extract-stream", files=files, stream=True, timeout=API_TIMEOUT_SECONDS
         )
-        
         if response.status_code != 200:
             raise Exception(f"API Error: {response.text}")
-        
-        return response.json()
+
+        final_result = None
+        for line in response.iter_lines():
+            if line:
+                line_str = line.decode("utf-8")
+                if line_str.startswith("data: "):
+                    data = json.loads(line_str[6:])
+                    if data.get("type") == "complete":
+                        final_result = data.get("data")
+                    else:
+                        status_callback(data)
+        return final_result
 
 
 # ============================================================================
-# JSON View Functions
+# RENDERING: Canonical Fields
 # ============================================================================
-def render_json_view(data: Dict[str, Any]) -> None:
-    """Render data as formatted JSON tree."""
-    st.json(data)
-
-
-# ============================================================================
-# Table View Functions
-# ============================================================================
-def render_file_metadata(file_info: Dict[str, Any]) -> None:
-    """Render file metadata as metrics."""
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(label="Source File", value=file_info.get("source_file", "Unknown")[:20])
-    with col2:
-        st.metric(label="Supplier", value=file_info.get("supplier", "Unknown")[:15])
-    with col3:
-        st.metric(label="Processed Sheets", value=file_info.get("processed_sheets", 0))
-    with col4:
-        st.metric(label="Line Items", value=file_info.get("total_line_items", 0))
-
-
-def render_canonical_fields_table(fields: Dict[str, Any], unique_key: str = "") -> None:
-    """Render canonical fields as a table."""
-    if not fields:
+def render_canonical_fields_table(canonical: Dict[str, Any]) -> None:
+    """Render canonical fields as a table with value, cell_ref, and confidence."""
+    if not canonical:
         st.info("No header fields extracted.")
         return
-    
+
     st.subheader("Header Fields")
-    
-    # Convert to dataframe for table display
-    df = pd.DataFrame([
-        {"Field": k, "Value": str(v) if v else "-"}
-        for k, v in fields.items()
-    ])
+
+    rows = []
+    for field in CANONICAL_FIELDS:
+        value = canonical.get(field)
+        ref = canonical.get(f"{field}_ref", "—")
+        conf = canonical.get(f"{field}_confidence")
+        conf_display = f"{conf:.0%}" if conf is not None else "—"
+        rows.append({
+            "Field": field,
+            "Value": str(value) if value is not None else "—",
+            "Cell Ref": ref,
+            "Confidence": conf_display
+        })
+
+    df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-def render_line_items_table(line_items: list) -> None:
-    """Render line items as a data table."""
+# ============================================================================
+# RENDERING: Line Items
+# ============================================================================
+def render_line_items_table(line_items: List[Dict[str, Any]]) -> None:
+    """Render line items table. Shows value columns; ref columns in a toggle."""
     if not line_items:
         st.info("No line items extracted.")
         return
-    
-    st.subheader(f"Line Items ({len(line_items)} records)")
-    dataframe = pd.DataFrame(line_items)
-    st.dataframe(dataframe, use_container_width=True, height=400)
+
+    st.subheader(f"Line Items ({len(line_items)} rows)")
+
+    # Split into value columns and ref columns
+    value_cols = ["row_ref", "ASN", "part_number", "PO", "quantity", "unit_price", "total_value", "country_of_origin"]
+    ref_cols = [f"{c}_ref" for c in ["ASN", "part_number", "PO", "quantity", "unit_price", "total_value", "country_of_origin"]]
+
+    # Build display DataFrame for values
+    display_rows = []
+    for item in line_items:
+        row = {col: item.get(col, "—") for col in value_cols if col in item or col == "row_ref"}
+        display_rows.append(row)
+
+    df_values = pd.DataFrame(display_rows)
+    st.dataframe(df_values, use_container_width=True, height=400)
+
+    # Cell refs toggle
+    with st.expander("Show Cell References", expanded=False):
+        ref_rows = []
+        for item in line_items:
+            row = {"row_ref": item.get("row_ref", "—")}
+            for rc in ref_cols:
+                row[rc] = item.get(rc, "—")
+            ref_rows.append(row)
+        df_refs = pd.DataFrame(ref_rows)
+        st.dataframe(df_refs, use_container_width=True)
+        st.caption("Open your Excel file and navigate to these cell references to verify extracted values.")
 
 
-def render_sheet_table_view(sheet_key: str, sheet_data: Dict[str, Any], unique_key: str = "") -> None:
-    """Render sheet data in table format."""
-    with st.expander(sheet_key, expanded=True):
-        if "error" in sheet_data:
-            st.error(f"Extraction Error: {sheet_data['error']}")
-            return
-        
-        if "canonical_fields" in sheet_data:
-            render_canonical_fields_table(sheet_data["canonical_fields"], unique_key)
-        
+# ============================================================================
+# RENDERING: File Metadata + Confidence
+# ============================================================================
+def render_extraction_summary(sheet_data: Dict[str, Any], sheet_name: str) -> None:
+    """Render summary metrics for a single sheet extraction."""
+    overall = sheet_data.get("overall_confidence", 0.0)
+    li_conf = sheet_data.get("line_items_confidence", 0.0)
+    line_count = len(sheet_data.get("line_items", []))
+    doc_type = sheet_data.get("document_type", "INVOICE")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Document Type", doc_type)
+    with col2:
+        st.metric("Overall Confidence", f"{overall:.0%}")
+    with col3:
+        st.metric("Line Items Confidence", f"{li_conf:.0%}")
+    with col4:
+        st.metric("Line Items Found", line_count)
+
+    # Confidence bar
+    color = "green" if overall >= 0.85 else ("orange" if overall >= 0.65 else "red")
+    st.progress(overall, text=f"Overall Extraction Confidence: {overall:.1%}")
+
+
+# ============================================================================
+# RENDERING: Full Sheet Result
+# ============================================================================
+def render_sheet_result(sheet_name: str, sheet_data: Dict[str, Any]) -> None:
+    """Render a single sheet extraction result with tabs."""
+    if "error" in sheet_data:
+        st.error(f"Extraction Error: {sheet_data['error']}")
+        return
+
+    st.markdown(f"### Sheet: `{sheet_name}`")
+    render_extraction_summary(sheet_data, sheet_name)
+    st.divider()
+
+    tab_table, tab_json = st.tabs(["Table View", "Raw JSON"])
+
+    with tab_table:
+        render_canonical_fields_table(sheet_data.get("canonical_fields", {}))
         st.divider()
-        
-        if "line_items" in sheet_data:
-            render_line_items_table(sheet_data["line_items"])
-        
-        if "extraction_confidence" in sheet_data:
-            conf = sheet_data["extraction_confidence"]
-            st.progress(value=conf, text=f"Extraction Confidence: {conf:.1%}")
+        render_line_items_table(sheet_data.get("line_items", []))
+
+    with tab_json:
+        st.json(sheet_data)
 
 
-def render_table_view(data: Dict[str, Any], file_key: str = "") -> None:
-    """Render complete extraction results in table format."""
-    if "_file_info" in data:
-        render_file_metadata(data["_file_info"])
-        st.divider()
-    
+# ============================================================================
+# RENDERING: Full File Result
+# ============================================================================
+def render_extraction_results(data: Dict[str, Any]) -> None:
+    """Render complete extraction results for a file."""
+    file_info = data.get("_file_info", {})
+    if file_info:
+        with st.expander("📁 File Info", expanded=False):
+            st.json(file_info)
+
+    # Render each sheet that is an invoice
     for key, value in data.items():
         if key.startswith("_"):
             continue
-        if isinstance(value, dict):
-            render_sheet_table_view(key, value, f"{file_key}_{key}")
+        if isinstance(value, dict) and "canonical_fields" in value:
+            render_sheet_result(key, value)
 
 
 # ============================================================================
-# Main Display Function with View Toggle
+# PROCESSING: Live Status
 # ============================================================================
-def render_extraction_results_with_toggle(data: Dict[str, Any], file_key: str = "") -> None:
-    """Render extraction results with JSON/Table tabs - both views render once, instant switch."""
-    
-    # Use tabs - both views are rendered, switching is instant (no rerun)
-    tab_json, tab_table = st.tabs(["JSON View", "Table View"])
-    
-    with tab_json:
-        st.json(data)
-    
-    with tab_table:
-        render_table_view(data, file_key)
-
-
-def render_batch_results(batch_data: Dict[str, Any]) -> None:
-    """Render results from batch extraction."""
-    summary = batch_data.get("summary", {})
-    extracted = batch_data.get("extracted", {})
-    errors = batch_data.get("errors", [])
-    
-    st.subheader("Batch Processing Summary")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Files", summary.get("total_files", 0))
-    with col2:
-        st.metric("Successful", summary.get("successful", 0))
-    with col3:
-        st.metric("Failed", summary.get("failed", 0))
-    
-    st.divider()
-    
-    if errors:
-        with st.expander("Errors", expanded=False):
-            for error in errors:
-                st.error(f"{error.get('filename')}: {error.get('error')}")
-    
-    for filename, file_data in extracted.items():
-        st.subheader(f"File: {filename}")
-        render_extraction_results_with_toggle(file_data, file_key=filename.replace(".", "_"))
-        st.divider()
-
-
-def render_sidebar(api_client: APIClient) -> None:
-    """Render the sidebar with status and instructions."""
-    with st.sidebar:
-        st.header("System Status")
-        
-        api_healthy = api_client.health_check()
-        if api_healthy:
-            st.success("Backend API: Connected")
-        else:
-            st.error("Backend API: Offline")
-            st.code("cd backend\nuvicorn api:app --reload", language="bash")
-        
-        st.divider()
-        
-        st.header("View Options")
-        st.markdown("""
-        - **JSON View**: Shows raw JSON tree
-        - **Table View**: Shows data in grid format
-        """)
-        
-        st.divider()
-        
-        st.header("Extracted Fields")
-        st.markdown("""
-        **Header:**
-        supplier_name, invoice_number, invoice_date, currency, Incoterm, commercial_invoice_value, HAWB_number, MAWB_number
-        
-        **Line Items:**
-        ASN, country_of_origin, part_number, PO, Quantity, Total_Value, unit_price
-        """)
-
-
 def process_with_live_status(api_client: APIClient, uploaded_file) -> Optional[Dict[str, Any]]:
-    """Process file with live status updates."""
     status_container = st.container()
-    
     with status_container:
         progress_bar = st.progress(0, text="Initializing...")
         status_text = st.empty()
-        detail_text = st.empty()
         log_container = st.empty()
-    
+
     processing_logs = []
-    
+
     def update_status(data: Dict[str, Any]):
-        """Callback to update UI with status."""
-        msg_type = data.get('type', 'status')
-        message = data.get('message', '')
-        progress = data.get('progress', 0)
-        detail = data.get('detail', '')
-        step = data.get('step', 0)
-        total_steps = data.get('total_steps', 5)
-        
-        progress_bar.progress(progress / 100, text=f"Step {step}/{total_steps}")
-        
-        if msg_type == 'status':
-            status_text.info(f"Processing: {message}")
-        elif msg_type == 'warning':
-            status_text.warning(f"Warning: {message}")
-        elif msg_type == 'error':
+        progress = data.get("progress", 0)
+        message = data.get("message", "")
+        msg_type = data.get("type", "status")
+
+        progress_bar.progress(min(progress, 100) / 100, text=f"Step {data.get('step', 1)}/4")
+
+        if msg_type == "error":
             status_text.error(f"Error: {message}")
-        
-        if detail:
-            detail_text.caption(detail)
-        
+        else:
+            status_text.info(message)
+
         timestamp = time.strftime("%H:%M:%S")
-        log_entry = f"[{timestamp}] {message}"
-        processing_logs.append(log_entry)
-        
-        log_display = "\n".join(processing_logs[-5:])
-        log_container.code(log_display, language="text")
-    
+        processing_logs.append(f"[{timestamp}] {message}")
+        log_container.code("\n".join(processing_logs[-5:]), language="text")
+
     try:
         result = api_client.extract_with_streaming(
             file_name=uploaded_file.name,
             file_content=uploaded_file.getvalue(),
             status_callback=update_status
         )
-        
-        progress_bar.progress(100, text="Complete")
-        status_text.success("Extraction completed successfully")
-        
+        progress_bar.progress(1.0, text="Complete")
+        status_text.success("Extraction completed successfully!")
         return result
-        
     except Exception as e:
-        progress_bar.progress(100, text="Failed")
+        progress_bar.progress(1.0, text="Failed")
         status_text.error(f"Extraction failed: {str(e)}")
         return None
 
 
+# ============================================================================
+# SIDEBAR
+# ============================================================================
+def render_sidebar(api_client: APIClient) -> None:
+    with st.sidebar:
+        st.header("System Status")
+        if api_client.health_check():
+            st.success("Backend API: Connected")
+        else:
+            st.error("Backend API: Offline")
+            st.code("cd backend\nuvicorn api:app --reload", language="bash")
+
+        st.divider()
+        st.header("Output Format")
+        st.markdown("""
+        Each canonical field returns:
+        - `field` — extracted value
+        - `field_ref` — Excel cell (e.g. `I1`)
+        - `field_confidence` — 0.0–1.0
+
+        Line items include `_ref` per field and `row_ref` for row traceability.
+        """)
+
+        st.divider()
+        st.header("Field Reference")
+        
+        with st.expander("Header/Footer Fields", expanded=True):
+            for f in CANONICAL_FIELDS:
+                st.markdown(f"- `{f}`")
+                
+        with st.expander("Table Item Fields", expanded=True):
+            table_fields = [
+                "ASN", "part_number", "PO", "quantity", 
+                "total_value", "unit_price", "country_of_origin"
+            ]
+            for f in table_fields:
+                st.markdown(f"- `{f}`")
+
+
+# ============================================================================
+# MAIN
+# ============================================================================
 def main() -> None:
-    """Main application entry point."""
-    
-    st.set_page_config(
-        page_title="Excel Invoice Extraction",
-        page_icon="document",
-        layout="wide"
-    )
-    
+    st.set_page_config(page_title="Excel Invoice Extraction", page_icon="file-earmark-spreadsheet", layout="wide")
+
     api_client = APIClient(base_url=API_BASE_URL)
     render_sidebar(api_client)
-    
+
     st.title("Excel Invoice Data Extraction")
-    st.markdown("Upload Excel invoices to extract structured data JSON format using Gemini")
-    
+    st.markdown("Upload Excel invoices to extract structured data using Gemini — with exact cell references and confidence scores.")
     st.divider()
-    
-    # File uploader
+
     st.subheader("Upload Invoices")
     uploaded_files = st.file_uploader(
         label="Select one or more Excel files",
         type=SUPPORTED_FILE_TYPES,
         accept_multiple_files=True,
-        help="Supported formats: .xlsx, .xls"
+        help="Supported: .xlsx, .xls"
     )
-    
-    if uploaded_files:
+
+    if not uploaded_files:
+        return
+
+    st.divider()
+
+    if not api_client.health_check():
+        st.error("Cannot process: Backend API is offline.")
+        return
+
+    cache_key = "_".join([f"{f.name}_{f.size}" for f in uploaded_files])
+    if "cache_key" not in st.session_state:
+        st.session_state.cache_key = None
+        st.session_state.results = None
+
+    if st.session_state.cache_key != cache_key:
+        if len(uploaded_files) == 1:
+            st.subheader("Processing Status")
+            result = process_with_live_status(api_client, uploaded_files[0])
+            if result:
+                st.session_state.results = {"type": "single", "filename": uploaded_files[0].name, "data": result}
+                st.session_state.cache_key = cache_key
+        else:
+            st.subheader("Batch Processing")
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            all_results = {}
+            errors = []
+
+            for idx, f in enumerate(uploaded_files):
+                progress_bar.progress(int((idx / len(uploaded_files)) * 100) / 100)
+                status_text.info(f"Processing: {f.name}")
+                try:
+                    result = api_client.extract_invoice(f.name, f.getvalue())
+                    all_results[f.name] = result
+                except Exception as e:
+                    errors.append({"filename": f.name, "error": str(e)})
+
+            progress_bar.progress(1.0)
+            status_text.success(f"Done: {len(all_results)}/{len(uploaded_files)} files processed")
+            st.session_state.results = {
+                "type": "batch",
+                "data": {"extracted": all_results, "errors": errors,
+                         "summary": {"total": len(uploaded_files), "successful": len(all_results), "failed": len(errors)}}
+            }
+            st.session_state.cache_key = cache_key
+
+    if st.session_state.results:
         st.divider()
-        
-        if not api_client.health_check():
-            st.error("Cannot process files: Backend API is offline.")
-            return
-        
-        file_count = len(uploaded_files)
-        
-        # Create cache key based on file names and sizes
-        cache_key = "_".join([f"{f.name}_{f.size}" for f in uploaded_files])
-        
-        # Check if we already have results cached
-        if "extraction_cache_key" not in st.session_state:
-            st.session_state.extraction_cache_key = None
-            st.session_state.extraction_results = None
-        
-        # Only process if files changed
-        if st.session_state.extraction_cache_key != cache_key:
-            st.info(f"Processing {file_count} file(s)...")
-            
-            if file_count == 1:
-                # Single file with live streaming
-                uploaded_file = uploaded_files[0]
-                st.subheader("Processing Status")
-                result = process_with_live_status(api_client, uploaded_file)
-                
-                if result:
-                    st.session_state.extraction_results = {
-                        "type": "single",
-                        "filename": uploaded_file.name,
-                        "data": result
-                    }
-                    st.session_state.extraction_cache_key = cache_key
-            else:
-                # Batch processing
-                st.subheader("Batch Processing Status")
-                
-                progress_bar = st.progress(0, text="Starting batch processing...")
-                status_text = st.empty()
-                
-                all_results = {}
-                errors = []
-                
-                for idx, uploaded_file in enumerate(uploaded_files):
-                    progress = int((idx / file_count) * 100)
-                    progress_bar.progress(progress, text=f"Processing file {idx + 1}/{file_count}")
-                    status_text.info(f"Processing: {uploaded_file.name}")
-                    
-                    try:
-                        result = api_client.extract_invoice(
-                            file_name=uploaded_file.name,
-                            file_content=uploaded_file.getvalue()
-                        )
-                        all_results[uploaded_file.name] = result
-                    except Exception as e:
-                        errors.append({"filename": uploaded_file.name, "error": str(e)})
-                
-                progress_bar.progress(100, text="Batch processing complete")
-                status_text.success(f"Processed {len(all_results)}/{file_count} files successfully")
-                
-                batch_data = {
-                    "extracted": all_results,
-                    "errors": errors,
-                    "summary": {
-                        "total_files": file_count,
-                        "successful": len(all_results),
-                        "failed": len(errors)
-                    }
-                }
-                
-                st.session_state.extraction_results = {
-                    "type": "batch",
-                    "data": batch_data
-                }
-                st.session_state.extraction_cache_key = cache_key
-        
-        # Display cached results (no rerun needed for tab switching)
-        if st.session_state.extraction_results:
+        st.subheader("Extraction Results")
+        results = st.session_state.results
+
+        if results["type"] == "single":
+            render_extraction_results(results["data"])
             st.divider()
-            st.subheader("Extraction Results")
-            st.caption("Switch between JSON and Table tabs instantly - no reprocessing needed")
-            
-            results = st.session_state.extraction_results
-            
-            if results["type"] == "single":
-                render_extraction_results_with_toggle(results["data"], file_key=results["filename"].replace(".", "_"))
-                
-                st.divider()
-                json_output = json.dumps(results["data"], indent=2, ensure_ascii=False)
-                st.download_button(
-                    label="Download JSON",
-                    data=json_output,
-                    file_name=f"{results['filename'].rsplit('.', 1)[0]}_extracted.json",
-                    mime="application/json"
-                )
-            else:
-                render_batch_results(results["data"])
-                
-                json_output = json.dumps(results["data"], indent=2, ensure_ascii=False)
-                st.download_button(
-                    label="Download All Results (JSON)",
-                    data=json_output,
-                    file_name="batch_extraction_results.json",
-                    mime="application/json"
-                )
+            json_out = json.dumps(results["data"], indent=2, ensure_ascii=False)
+            st.download_button("Download JSON", data=json_out,
+                               file_name=f"{results['filename'].rsplit('.', 1)[0]}_extracted.json",
+                               mime="application/json")
+        else:
+            summary = results["data"]["summary"]
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Total Files", summary["total"])
+            c2.metric("Successful", summary["successful"])
+            c3.metric("Failed", summary["failed"])
+
+            if results["data"]["errors"]:
+                with st.expander("Errors"):
+                    for e in results["data"]["errors"]:
+                        st.error(f"{e['filename']}: {e['error']}")
+
+            for fname, fdata in results["data"]["extracted"].items():
+                st.markdown(f"---\n## {fname}")
+                render_extraction_results(fdata)
+
+            json_out = json.dumps(results["data"], indent=2, ensure_ascii=False)
+            st.download_button("Download All (JSON)", data=json_out,
+                               file_name="batch_extraction_results.json", mime="application/json")
 
 
 if __name__ == "__main__":
