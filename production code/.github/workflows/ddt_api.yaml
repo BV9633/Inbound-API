@@ -1,0 +1,92 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - production
+    path:
+      - 'final_api/**'
+
+      
+env:
+  PROJECT_ID: ${{ vars.DDT_GCP_PROJECT_ID }}
+  DATASET: ${{ vars.DDT_DATASET }}
+  BUCKET_NAME: ${{ vars.DDT_BUCKET_NAME }}
+  PDF_BASE_PATH: ${{ vars.DDT_PDF_BASE_PATH }}
+  CORS_ORIGIN: ${{ vars.DDT_CORS_ORIGIN }}
+  INVOICE_TABLE_NAME: ${{ vars.DDT_INVOICE_TABLE_NAME }}
+  WAYBILL_TABLE_NAME: ${{ vars.DDT_WAYBILL_TABLE_NAME }}
+  CBP_TABLE_NAME: ${{ vars.DDT_CBP_TABLE_NAME }}
+  WAYBILL_MINIMUM_CONFIDENCE: ${{ vars.DDT_WAYBILL_MINIMUM_CONFIDENCE }}
+  RECENT_DOCUMENTS_AGE: ${{ vars.DDT_RECENT_DOCUMENTS_AGE }}
+  ROLE_MANAGEMENT_TABLE_NAME: ${{ vars.DDT_ROLE_MANAGEMENT_TABLE_NAME }}
+  GRAPH_DOCUMENTS_TIMELINE: ${{ vars.DDT_GRAPH_DOCUMENTS_TIMELINE }}
+  INVOICE_FOLDER: ${{ vars.DDT_INVOICE_FOLDER }}
+  SEA_WAYBILL_FOLDER: ${{ vars.DDT_SEA_WAYBILL_FOLDER }}
+  AIR_WAYBILL_FOLDER: ${{ vars.DDT_AIR_WAYBILL_FOLDER }}
+  CBP_FOLDER: ${{ vars.DDT_CBP_FOLDER }}
+  EXCEPTION_FOLDER: ${{ vars.DDT_EXCEPTION_FOLDER }}
+  METADATA_TABLE_NAME: ${{ vars.DDT_METADATA_TABLE_NAME }}
+  AUDITDATA_TABLE_NAME: ${{ vars.DDT_AUDITDATA_TABLE_NAME }}
+
+jobs:
+  deploy:
+    name: Deploy Cloud Run API Service
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: 'production'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          id_token_include_email: true
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker Auth
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build and Push Docker Image
+        run: |
+          cd final_api
+          docker build -t "${{ vars.ARTIFACT_REGISTRY_PATH_BACKEND }}:${{ github.sha }}" -f deploy/Dockerfile .
+          docker push "${{ vars.ARTIFACT_REGISTRY_PATH_BACKEND }}:${{ github.sha }}"
+
+      - name: Deploy to Cloud Run service
+        run: |
+          gcloud run deploy "${{ vars.CLOUD_RUN_NAME }}" \
+            --image "${{ vars.ARTIFACT_REGISTRY_PATH_BACKEND }}:${{ github.sha }}" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --service-account "${{ vars.DDT_CR_SERVICE_ACC }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --quiet \
+            --set-env-vars "DDT_PROJECT_ID=$PROJECT_ID" \
+            --set-env-vars "DDT_DATASET=$DATASET" \
+            --set-env-vars "DDT_BUCKET_NAME=$BUCKET_NAME" \
+            --set-env-vars "DDT_PDF_BASE_PATH=$PDF_BASE_PATH" \
+            --set-env-vars "DDT_CORS_ORIGIN=$CORS_ORIGIN" \
+            --set-env-vars "DDT_INVOICE_TABLE_NAME=$INVOICE_TABLE_NAME" \
+            --set-env-vars "DDT_CBP_TABLE_NAME=$CBP_TABLE_NAME" \
+            --set-env-vars "DDT_WAYBILL_TABLE_NAME=$WAYBILL_TABLE_NAME" \
+            --set-env-vars "DDT_WAYBILL_MINIMUM_CONFIDENCE=$WAYBILL_MINIMUM_CONFIDENCE" \
+            --set-env-vars "DDT_RECENT_DOCUMENTS_AGE=$RECENT_DOCUMENTS_AGE" \
+            --set-env-vars "DDT_ROLE_MANAGEMENT_TABLE_NAME=$ROLE_MANAGEMENT_TABLE_NAME" \
+            --set-env-vars "DDT_GRAPH_DOCUMENTS_TIMELINE=$GRAPH_DOCUMENTS_TIMELINE" \
+            --set-env-vars "DDT_INVOICE_FOLDER=$INVOICE_FOLDER" \
+            --set-env-vars "DDT_SEA_WAYBILL_FOLDER=$SEA_WAYBILL_FOLDER" \
+            --set-env-vars "DDT_AIR_WAYBILL_FOLDER=$AIR_WAYBILL_FOLDER" \
+            --set-env-vars "DDT_CBP_FOLDER=$CBP_FOLDER" \
+            --set-env-vars "DDT_EXCEPTION_FOLDER=$EXCEPTION_FOLDER" \
+            --set-env-vars "DDT_METADATA_TABLE_NAME=$METADATA_TABLE_NAME" \
+            --set-env-vars "DDT_AUDITDATA_TABLE_NAME=$AUDITDATA_TABLE_NAME"

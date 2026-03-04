@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+google-cloud-storage
+google-cloud-bigquery
+google-cloud-documentai
+python-dotenv
+tzdata
+google-cloud-parametermanager
+google-cloud-secret-manager
+google-cloud-logging
